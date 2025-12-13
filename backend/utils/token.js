@@ -14,7 +14,7 @@ function createSendToken(user, statusCode, res) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        path: '/collaboraid', // Fix: Match the API base path
+        path: '/unite', // Fix: Match the API base path
     };
 
     res.cookie('jwt', token, cookieOptions);

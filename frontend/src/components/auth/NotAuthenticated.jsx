@@ -200,7 +200,7 @@ const NotAuthenticated = () => {
         {/* Footer Note */}
         <motion.div className="text-center mt-6" variants={itemVariants}>
           <p className="text-xs text-gray-400">
-            © 2024 CollabAid. All rights reserved.
+            © 2024 Unite. All rights reserved.
           </p>
         </motion.div>
       </motion.div>

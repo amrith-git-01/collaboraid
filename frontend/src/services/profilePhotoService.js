@@ -1,6 +1,6 @@
 import { authService } from './authService';
 
-const API_BASE_URL = 'http://localhost:5151/collaboraid/api';
+const API_BASE_URL = 'http://localhost:5151/unite/api';
 
 export const profilePhotoService = {
     async uploadProfilePhoto(file) {

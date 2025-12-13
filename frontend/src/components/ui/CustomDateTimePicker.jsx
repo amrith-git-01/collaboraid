@@ -1,5 +1,140 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
+
+// Helper component for wheel columns
+const WheelColumn = ({ options, value, onChange, label, format = v => v }) => {
+  const containerRef = useRef(null);
+  const isScrollingRef = useRef(false);
+  const isUserScrollingRef = useRef(false);
+  const timeoutRef = useRef(null);
+  const rafRef = useRef(null);
+  const itemHeight = 48; // Height of each item in pixels
+  const containerHeight = 192; // Total height of container (h-48 = 12rem = 192px)
+  const paddingHeight = (containerHeight - itemHeight) / 2;
+
+  // Scroll to selected value on mount
+  useEffect(() => {
+    if (containerRef.current) {
+      const index = options.indexOf(value);
+      if (index !== -1) {
+        isScrollingRef.current = true;
+        containerRef.current.scrollTop = index * itemHeight;
+        // Reset flag after scroll completes
+        const timeout = setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 100);
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, []); // Only on mount
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  // Optimized scroll handler using requestAnimationFrame
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current || isScrollingRef.current) return;
+
+    isUserScrollingRef.current = true;
+
+    // Cancel any pending updates
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Use requestAnimationFrame for smooth updates
+    rafRef.current = requestAnimationFrame(() => {
+      if (!containerRef.current) return;
+
+      const scrollTop = containerRef.current.scrollTop;
+      const index = Math.round(scrollTop / itemHeight);
+
+      if (index >= 0 && index < options.length) {
+        const newValue = options[index];
+        if (newValue !== value) {
+          // Debounce the onChange call to avoid too many updates
+          timeoutRef.current = setTimeout(() => {
+            onChange(newValue);
+            isUserScrollingRef.current = false;
+          }, 50); // Reduced from 100ms for faster response
+        }
+      }
+    });
+  }, [options, value, onChange, itemHeight]);
+
+  // Update scroll position when value changes externally (e.g. initial load or click)
+  useEffect(() => {
+    if (containerRef.current && !isUserScrollingRef.current) {
+      const currentScroll = containerRef.current.scrollTop;
+      const targetIndex = options.indexOf(value);
+      const targetScroll = targetIndex * itemHeight;
+
+      // Only scroll if the difference is significant to avoid fighting with user scroll
+      if (Math.abs(currentScroll - targetScroll) > itemHeight / 2) {
+        isScrollingRef.current = true;
+        containerRef.current.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth',
+        });
+
+        // Reset flag after scroll animation completes
+        setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 300);
+      }
+    }
+  }, [value, options, itemHeight]);
+
+  return (
+    <div className="relative flex-1 h-48 group">
+      <style>
+        {`
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}
+      </style>
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="absolute inset-0 overflow-y-auto snap-y snap-mandatory hide-scrollbar"
+        style={{ scrollBehavior: 'smooth' }}
+      >
+        <div style={{ height: paddingHeight }} />
+        {options.map(opt => (
+          <div
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`h-12 flex items-center justify-center snap-center cursor-pointer transition-colors duration-150 ${
+              opt === value
+                ? 'text-purple-600 font-bold text-xl scale-110'
+                : 'text-gray-400 font-medium text-base hover:text-gray-600'
+            }`}
+          >
+            {format(opt)}
+          </div>
+        ))}
+        <div style={{ height: paddingHeight }} />
+      </div>
+    </div>
+  );
+};
 
 const CustomDateTimePicker = ({
   value,
@@ -15,6 +150,8 @@ const CustomDateTimePicker = ({
     value ? new Date(value) : null
   );
   const [selectedHour, setSelectedHour] = useState(12);
+  const [selectedMinute, setSelectedMinute] = useState(0);
+  const [isAM, setIsAM] = useState(true);
   const [view, setView] = useState('date'); // 'date' or 'time'
   const modalRef = useRef(null);
 
@@ -23,7 +160,10 @@ const CustomDateTimePicker = ({
     if (isOpen && value) {
       const date = new Date(value);
       setSelectedDate(date);
-      setSelectedHour(date.getHours());
+      const hours = date.getHours();
+      setSelectedHour(hours % 12 || 12);
+      setIsAM(hours < 12);
+      setSelectedMinute(date.getMinutes());
       setCurrentDate(date);
     }
   }, [isOpen]); // Only depend on isOpen, not value
@@ -34,6 +174,8 @@ const CustomDateTimePicker = ({
       // Reset all data when modal closes
       setSelectedDate(null);
       setSelectedHour(12);
+      setSelectedMinute(0);
+      setIsAM(true);
       setView('date');
       setCurrentDate(new Date());
     }
@@ -105,50 +247,31 @@ const CustomDateTimePicker = ({
   };
 
   const handleTimeConfirm = () => {
-    console.log('handleTimeConfirm called', {
-      selectedDate,
-      selectedHour,
-      onSelect,
-      onChange,
-    });
-
     if (selectedDate) {
       const finalDate = new Date(selectedDate);
-      finalDate.setHours(selectedHour);
-      finalDate.setMinutes(0);
+      // Convert 12-hour format to 24-hour format
+      let hour24 = selectedHour;
+      if (!isAM && selectedHour !== 12) {
+        hour24 = selectedHour + 12;
+      } else if (isAM && selectedHour === 12) {
+        hour24 = 0;
+      }
+      finalDate.setHours(hour24);
+      finalDate.setMinutes(selectedMinute);
       finalDate.setSeconds(0);
       finalDate.setMilliseconds(0);
-
-      console.log('Final date created:', finalDate.toISOString());
 
       // Use onSelect if provided, otherwise fall back to onChange
       const callback = onSelect || onChange;
       if (callback) {
-        console.log('Calling callback with:', finalDate.toISOString());
         callback(finalDate.toISOString());
-      } else {
-        console.error(
-          'No callback provided! onSelect:',
-          onSelect,
-          'onChange:',
-          onChange
-        );
       }
       onClose();
-    } else {
-      console.error('No selectedDate available');
     }
   };
 
-  const navigateMonth = direction => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + direction);
-      return newDate;
-    });
-  };
-
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55
 
   if (!isOpen) return null;
 
@@ -156,20 +279,20 @@ const CustomDateTimePicker = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
       <div
         ref={modalRef}
-        className="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 animate-in slide-in-from-bottom-4 duration-300 border border-gray-100"
+        className="bg-white rounded-3xl shadow-2xl max-w-sm w-full mx-4 animate-in slide-in-from-bottom-4 duration-300 border border-gray-100 overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-purple-50 rounded-t-2xl">
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-purple-50">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             {view === 'date' ? (
               <>
                 <Calendar className="w-5 h-5 text-purple-600" />
-                Select Date
+                <span>Select Date</span>
               </>
             ) : (
               <>
                 <Clock className="w-5 h-5 text-purple-600" />
-                Select Time
+                <span>Select Time</span>
               </>
             )}
           </h3>
@@ -178,13 +301,15 @@ const CustomDateTimePicker = ({
               // Reset data before closing
               setSelectedDate(null);
               setSelectedHour(12);
+              setSelectedMinute(0);
+              setIsAM(true);
               setView('date');
               setCurrentDate(new Date());
               onClose();
             }}
-            className="p-2 rounded-full hover:bg-white hover:shadow-md transition-all duration-200 group"
+            className="p-2 rounded-full hover:bg-white/50 hover:shadow-sm transition-all duration-200 text-gray-500 hover:text-gray-700"
           >
-            <X className="w-5 h-5 text-gray-500 group-hover:text-gray-700" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -194,114 +319,117 @@ const CustomDateTimePicker = ({
             /* Date Picker View */
             <div className="space-y-6">
               {/* Month Navigation */}
-              <div className="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between">
                 <button
                   onClick={() => navigateMonth(-1)}
-                  className="p-2 rounded-xl hover:bg-purple-50 transition-all duration-200 hover:scale-105 group"
+                  className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-600"
                 >
-                  <ChevronLeft className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <h4 className="text-lg font-semibold text-purple-700">
+                <h4 className="text-lg font-semibold text-gray-900">
                   {getMonthName(currentDate)}
                 </h4>
                 <button
                   onClick={() => navigateMonth(1)}
-                  className="p-2 rounded-xl hover:bg-purple-50 transition-all duration-200 hover:scale-105 group"
+                  className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-600"
                 >
-                  <ChevronRight className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div
-                    key={day}
-                    className="text-center text-sm font-semibold text-gray-500 py-2"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
               {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {getDaysInMonth(currentDate).map((date, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleDateSelect(date)}
-                    disabled={!date || isDisabled(date)}
-                    className={`
-                      relative p-3 rounded-2xl text-sm font-medium transition-all duration-300 hover:scale-105
-                      ${
-                        !date || isDisabled(date)
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : isSelected(date)
-                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 transform scale-105'
-                            : isToday(date)
-                              ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-md'
-                              : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700 hover:shadow-md'
-                      }
-                    `}
-                  >
-                    {date ? date.getDate() : ''}
-                    {isToday(date) && !isSelected(date) && (
-                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* Time Picker View */
-            <div className="space-y-6">
-              {/* Time Display */}
-              <div className="text-center bg-purple-50 rounded-2xl p-6 border border-purple-200">
-                <div className="text-4xl font-bold text-purple-700 mb-2">
-                  {selectedHour === 0
-                    ? '12'
-                    : selectedHour <= 12
-                      ? selectedHour
-                      : selectedHour - 12}
-                  :00
+              <div>
+                <div className="grid grid-cols-7 mb-2">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                    <div
+                      key={day}
+                      className="text-center text-xs font-semibold text-gray-400 py-1"
+                    >
+                      {day}
+                    </div>
+                  ))}
                 </div>
-                <div className="text-sm text-gray-600 font-medium mb-2">
-                  {selectedDate?.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </div>
-                <div className="text-lg font-semibold text-purple-600">
-                  {selectedHour === 0
-                    ? 'Midnight (12:00 AM)'
-                    : selectedHour === 12
-                      ? 'Noon (12:00 PM)'
-                      : selectedHour < 12
-                        ? `${selectedHour}:00 AM`
-                        : `${selectedHour}:00 PM`}
-                </div>
-              </div>
-
-              {/* Hour Selection */}
-              <div className="text-center">
-                <div className="grid grid-cols-8 gap-2">
-                  {hours.map(hour => (
+                <div className="grid grid-cols-7 gap-1">
+                  {getDaysInMonth(currentDate).map((date, index) => (
                     <button
-                      key={hour}
-                      onClick={() => setSelectedHour(hour)}
+                      key={index}
+                      onClick={() => handleDateSelect(date)}
+                      disabled={!date || isDisabled(date)}
                       className={`
-                        p-3 rounded-xl text-base font-medium transition-all duration-200 hover:scale-105
+                        relative h-9 rounded-full text-sm font-medium transition-all duration-200
                         ${
-                          selectedHour === hour
-                            ? 'bg-purple-600 text-white shadow-md shadow-purple-200 transform scale-105'
-                            : 'bg-gray-100 text-gray-700 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm'
+                          !date || isDisabled(date)
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : isSelected(date)
+                              ? 'bg-purple-600 text-white shadow-md'
+                              : isToday(date)
+                                ? 'bg-purple-50 text-purple-700'
+                                : 'text-gray-700 hover:bg-gray-50'
                         }
                       `}
                     >
-                      {hour.toString().padStart(2, '0')}
+                      {date ? date.getDate() : ''}
+                      {isToday(date) && !isSelected(date) && (
+                        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-purple-500 rounded-full"></div>
+                      )}
                     </button>
                   ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Time Wheel Picker View */
+            <div className="space-y-6">
+              {/* Selected Date Display */}
+              <div className="text-center">
+                <div className="text-sm font-medium text-purple-600 uppercase tracking-wide mb-1">
+                  {selectedDate?.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </div>
+                <div className="text-3xl font-bold text-gray-900">
+                  {selectedHour}:{selectedMinute.toString().padStart(2, '0')}{' '}
+                  {isAM ? 'AM' : 'PM'}
+                </div>
+              </div>
+
+              {/* Wheel Container */}
+              <div className="relative h-48 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+                {/* Selection Highlight Bar */}
+                <div className="absolute top-1/2 left-0 right-0 transform -translate-y-1/2 h-12 bg-white border-y border-purple-100 shadow-sm z-0 pointer-events-none" />
+
+                {/* Gradient Overlays for 3D effect */}
+                <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none" />
+
+                <div className="relative z-20 flex h-full">
+                  <WheelColumn
+                    options={hours}
+                    value={selectedHour}
+                    onChange={setSelectedHour}
+                  />
+
+                  {/* Colon Separator */}
+                  <div className="flex items-center justify-center pt-1">
+                    <span className="text-xl font-bold text-gray-400 pb-1">
+                      :
+                    </span>
+                  </div>
+
+                  <WheelColumn
+                    options={minutes}
+                    value={selectedMinute}
+                    onChange={setSelectedMinute}
+                    format={m => m.toString().padStart(2, '0')}
+                  />
+
+                  <WheelColumn
+                    options={['AM', 'PM']}
+                    value={isAM ? 'AM' : 'PM'}
+                    onChange={val => setIsAM(val === 'AM')}
+                  />
                 </div>
               </div>
             </div>
@@ -309,35 +437,36 @@ const CustomDateTimePicker = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
           {view === 'time' && (
             <button
               onClick={() => setView('date')}
-              className="px-4 py-2 text-purple-600 hover:text-purple-700 transition-colors duration-200 font-medium hover:scale-105"
+              className="text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors"
             >
-              ← Back to Date
+              Back
             </button>
           )}
           <div className="flex gap-3 ml-auto">
             <button
               onClick={() => {
-                // Reset data before closing
                 setSelectedDate(null);
                 setSelectedHour(12);
+                setSelectedMinute(0);
+                setIsAM(true);
                 setView('date');
                 setCurrentDate(new Date());
                 onClose();
               }}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200 hover:scale-105"
+              className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 rounded-xl transition-colors"
             >
               Cancel
             </button>
             {view === 'time' && (
               <button
                 onClick={handleTimeConfirm}
-                className="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-200 font-semibold shadow-md hover:shadow-lg hover:scale-105 transform"
+                className="px-6 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md transition-all hover:shadow-lg active:scale-95"
               >
-                Confirm
+                Set Time
               </button>
             )}
           </div>

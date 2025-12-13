@@ -264,8 +264,8 @@ const EventCard = ({
                   <p className="text-sm text-gray-500 font-medium">Access</p>
                   <p className="text-gray-900 font-semibold">
                     {event.eventAccessType === 'codeToJoin'
-                      ? 'Code Protected'
-                      : 'Free for All'}
+                      ? 'Invitation'
+                      : 'Free'}
                   </p>
                 </div>
               </div>
@@ -487,8 +487,8 @@ const EventCard = ({
                         </p>
                         <p className="text-sm text-gray-900 font-semibold">
                           {event.eventAccessType === 'codeToJoin'
-                            ? 'Code Protected'
-                            : 'Free for All'}
+                            ? 'Invitation'
+                            : 'Free'}
                         </p>
                       </div>
                     </div>

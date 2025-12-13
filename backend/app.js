@@ -11,6 +11,7 @@ const contactRouter = require('./routes/contactRoutes');
 const profilePhotoRouter = require('./routes/profilePhotoRoutes');
 const eventRouter = require('./routes/eventRoutes');
 const locationRouter = require('./routes/locationRoutes');
+const organizationRouter = require('./routes/organizationRoutes');
 
 const app = express();
 
@@ -28,11 +29,12 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
 }
 
-app.use('/collaboraid/api/users', userRouter);
-app.use('/collaboraid/api/contact', contactRouter)
-app.use('/collaboraid/api/profile-photo', profilePhotoRouter);
-app.use('/collaboraid/api/events', eventRouter);
-app.use('/collaboraid/api/location', locationRouter);
+app.use('/unite/api/users', userRouter);
+app.use('/unite/api/contact', contactRouter)
+app.use('/unite/api/profile-photo', profilePhotoRouter);
+app.use('/unite/api/events', eventRouter);
+app.use('/unite/api/location', locationRouter);
+app.use('/unite/api/organizations', organizationRouter);
 
 
 app.use((req, res, next) => {

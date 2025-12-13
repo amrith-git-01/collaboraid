@@ -57,6 +57,11 @@ const eventSchema = new mongoose.Schema({
         ref: 'User',
         required: [true, 'An event must have a creator'],
     },
+    eventOrganization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: [true, 'An event must have an organization'],
+    },
     eventMaxAttendees: {
         type: Number,
         required: [true, 'An event must have a maximum number of attendees'],
@@ -166,6 +171,7 @@ eventSchema.index({ eventAccessType: 1 });
 eventSchema.index({ eventJoinCode: 1 });
 eventSchema.index({ eventType: 1, eventAccessType: 1 });
 eventSchema.index({ isDeleted: 1 }); // Index for soft delete filtering
+eventSchema.index({ eventOrganization: 1 }); // Index for organization filtering
 
 // Static method to generate unique join codes
 eventSchema.statics.generateUniqueJoinCode = async function () {

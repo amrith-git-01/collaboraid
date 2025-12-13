@@ -35,7 +35,7 @@ module.exports = class Email {
     const emailData = {
       sender: {
         email: this.from,
-        name: 'Collaboraid Team',
+        name: 'Unite Team',
       },
       to: [
         {
@@ -77,17 +77,17 @@ module.exports = class Email {
     const mailTemplate = `
   <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fafaf9; border-radius: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); box-sizing: border-box;">
 
-    <!-- Logo -->
+    <!-- Brand Name -->
     <div style="text-align: center; padding: 20px 0;">
-      <img src="https://i.imgur.com/JWATyOV.png" alt="Collaboraid Logo" style="max-width: 100px; height: auto;">
+      <h1 style="font-size: 28px; font-weight: bold; color: #9333ea; margin: 0;">Unite</h1>
     </div>
 
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #9333ea, #7c3aed); color: #ffffff; padding: 30px; border-radius: 8px; text-align: center;">
-      <h1 style="font-size: 24px; margin-bottom: 15px;">Welcome to Collaboraid!</h1>
+      <h1 style="font-size: 24px; margin-bottom: 15px;">Welcome to Unite!</h1>
       <p style="font-size: 16px; line-height: 1.5;">
         Hi <strong>${this.firstName}</strong>,<br>
-        We're excited to have you on board! Collaboraid helps you create, join, and collaborate on amazing events with your community.
+        We're excited to have you on board! Unite helps you create, join, and collaborate on amazing events with your community.
       </p>
       <a href="${this.url}" style="background: linear-gradient(135deg, #9333ea, #7c3aed); color: #ffffff; padding: 12px 30px; text-decoration: none; font-weight: 600; border-radius: 25px; font-size: 16px; display: inline-block; margin-top: 20px; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);">
         Explore Events Now
@@ -96,7 +96,7 @@ module.exports = class Email {
 
     <!-- Feature Highlights -->
     <div style="background-color: #ffffff; padding: 25px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
-      <h2 style="font-size: 20px; color: #111827; margin-bottom: 15px; text-align: center;">What You Can Do with Collaboraid:</h2>
+      <h2 style="font-size: 20px; color: #111827; margin-bottom: 15px; text-align: center;">What You Can Do with Unite:</h2>
       <ul style="list-style: none; padding: 0; margin: 0; color: #4b5563; font-size: 14px; line-height: 1.7;">
         <li style="margin-bottom: 10px;">✅ Create and manage events easily</li>
         <li style="margin-bottom: 10px;">✅ Invite collaborators and share responsibilities</li>
@@ -115,16 +115,16 @@ module.exports = class Email {
     </div>
   </div>
   `;
-    const subject = 'Welcome to Collaboraid!';
+    const subject = 'Welcome to Unite!';
     await this.send(mailTemplate, subject);
   }
 
   async sendPasswordReset() {
     const mailTemplate = `<div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fafaf9; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08); box-sizing: border-box;">
 
-        <!-- Logo -->
+        <!-- Brand Name -->
         <div style="text-align: center; padding: 20px 0;">
-          <img src="https://i.imgur.com/JWATyOV.png" alt="Collaboraid Logo" style="max-width: 100px; height: auto;">
+          <h1 style="font-size: 28px; font-weight: bold; color: #9333ea; margin: 0;">Unite</h1>
         </div>
     
         <!-- Password Reset Panel -->
@@ -132,7 +132,7 @@ module.exports = class Email {
           <h1 style="font-size: 24px; margin-bottom: 20px;">Reset Your Password</h1>
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
             Hi <strong>${this.firstName}</strong>,<br>
-            We received a request to reset your Collaboraid account password. Click the button below to proceed. This link will expire in 10 minutes.
+            We received a request to reset your Unite account password. Click the button below to proceed. This link will expire in 10 minutes.
           </p>
           <a href="${this.url}" style="background: linear-gradient(135deg, #9333ea, #7c3aed); color: #ffffff; padding: 12px 30px; text-decoration: none; font-weight: bold; border-radius: 25px; font-size: 16px; display: inline-block; transition: all 0.3s; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);">
             Reset Password
@@ -185,9 +185,9 @@ module.exports = class Email {
   async sendContactMessage(contactData) {
     const mailTemplate = `<div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fafaf9; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08); box-sizing: border-box;">
 
-        <!-- Logo -->
+        <!-- Brand Name -->
         <div style="text-align: center; padding: 20px 0;">
-          <img src="https://i.imgur.com/JWATyOV.png" alt="Collaboraid Logo" style="max-width: 100px; height: auto;">
+          <h1 style="font-size: 28px; font-weight: bold; color: #9333ea; margin: 0;">Unite</h1>
         </div>
     
         <!-- Contact Message Header -->
@@ -263,9 +263,6 @@ module.exports = class Email {
             font-size: 14px !important;
             padding: 8px 16px !important;
             margin: 3px !important;
-          }
-          img {
-            width: 80px !important;
           }
           div[style *= "padding: 20px"] {
             padding: 15px !important;

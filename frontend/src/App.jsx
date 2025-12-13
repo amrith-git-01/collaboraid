@@ -35,10 +35,7 @@ function App() {
                 </PublicRoute>
               }
             />
-              <Route
-                path="/reset-password/:token"
-                element={<ResetPassword />}
-              />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* Protected Dashboard Routes - Only accessible when authenticated */}
             <Route

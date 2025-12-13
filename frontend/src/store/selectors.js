@@ -4,6 +4,12 @@ import { createSelector } from '@reduxjs/toolkit';
 export const selectEvents = (state) => state.events;
 export const selectFilters = (state) => state.filters;
 
+// Organization selectors
+export const selectOrganization = (state) => state.organization.organization;
+export const selectHasOrganization = (state) => state.organization.hasOrganization;
+export const selectOrganizationLoading = (state) => state.organization.loading;
+export const selectOrganizationError = (state) => state.organization.error;
+
 // Events selectors
 export const selectAllEvents = (state) => state.events.allEvents;
 export const selectUserEvents = (state) => state.events.userEvents;

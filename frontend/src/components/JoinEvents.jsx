@@ -18,8 +18,8 @@ import {
   Users,
 } from 'lucide-react';
 import EventCard from './EventCard';
+import EventSkeletonCard from './EventSkeletonCard';
 import Input from './ui/Input';
-import UIVerseLoader from './ui/UIVerseLoader';
 import FilterDropdown from './ui/FilterDropdown';
 import {
   setJoinEventsSearchQuery,
@@ -255,8 +255,10 @@ const JoinEvents = ({
 
       {/* Events List */}
       {loading ? (
-        <div className="flex justify-center items-center py-6">
-          <UIVerseLoader text="Loading..." />
+        <div className="w-full space-y-3">
+          {[1, 2, 3].map(index => (
+            <EventSkeletonCard key={`skeleton-${index}`} />
+          ))}
         </div>
       ) : filteredEvents.length > 0 ? (
         <div className="w-full">

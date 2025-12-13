@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
+import CalendarEventModal from '../components/CalendarEventModal';
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,25 +11,116 @@ import {
   Clock,
   MapPin,
   Users,
+  Globe,
 } from 'lucide-react';
+import {
+  selectAllEvents,
+  selectUserEvents,
+  selectEventsLoading,
+} from '../store/selectors';
 
 function Calendar() {
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // month, week
-  const [events, setEvents] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
 
-  // Events array - will be populated from API calls
-  const mockEvents = [];
+  // Get events from Redux
+  const allEvents = useSelector(selectAllEvents);
+  const userEvents = useSelector(selectUserEvents);
+  const loading = useSelector(selectEventsLoading);
 
-  useEffect(() => {
-    // Load events from API
-    // TODO: Replace with actual API call
-    setEvents(mockEvents);
-  }, []);
+  // Combine created events and joined events (events user is participating in)
+  const calendarEvents = useMemo(() => {
+    if (!user) return [];
+
+    // Get all events: created by user + joined by user
+    const createdEvents = userEvents || [];
+    const joinedEvents = (allEvents || []).filter(event => {
+      // Event is joined if user is a participant but not the creator
+      const isCreator =
+        event.eventCreator?._id === user._id ||
+        event.eventCreator?._id === user.id;
+      const isParticipant = event.eventParticipants?.some(
+        participant =>
+          participant._id === user._id || participant._id === user.id
+      );
+      return !isCreator && isParticipant;
+    });
+
+    // Combine and deduplicate by event ID
+    const allUserEvents = [...createdEvents, ...joinedEvents];
+    const uniqueEvents = Array.from(
+      new Map(
+        allUserEvents.map(event => [event._id || event.id, event])
+      ).values()
+    );
+
+    // Transform to calendar format
+    return uniqueEvents.map(event => {
+      const startDate = new Date(event.eventStartDate);
+      const endDate = new Date(event.eventEndDate);
+      const now = new Date();
+
+      // Determine status
+      let status = 'upcoming';
+      if (now >= startDate && now <= endDate) {
+        status = 'ongoing';
+      } else if (now > endDate) {
+        status = 'completed';
+      }
+
+      // Format time
+      const startTime = startDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      const endTime = endDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      // Get location
+      let location = 'TBD';
+      if (event.eventType === 'online' && event.online?.eventPlatform) {
+        location = `${event.online.eventPlatform} - ${event.online.eventLink || 'Link TBD'}`;
+      } else if (
+        event.eventType === 'offline' &&
+        event.offline?.eventLocation
+      ) {
+        location = event.offline.eventLocation;
+      }
+
+      // Determine category/color based on event type
+      const category =
+        event.eventType === 'online' ? 'Technology' : 'Networking';
+
+      return {
+        id: event._id || event.id,
+        title: event.eventName,
+        description: event.eventDescription,
+        date: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        startDate: startDate,
+        endDate: endDate,
+        time: `${startTime} - ${endTime}`,
+        location: location,
+        category: category,
+        status: status,
+        attendees: event.eventParticipants?.length || 0,
+        maxAttendees: event.eventMaxAttendees || 0,
+        eventType: event.eventType,
+        eventAccessType: event.eventAccessType,
+        isCreator:
+          event.eventCreator?._id === user._id ||
+          event.eventCreator?._id === user.id,
+        event: event, // Store full event object for modal
+      };
+    });
+  }, [allEvents, userEvents, user]);
 
   // Early return if user is not authenticated
   if (!isAuthenticated) {
@@ -79,8 +172,32 @@ function Calendar() {
   };
 
   const getEventsForDate = date => {
-    const dateString = date.toISOString().split('T')[0];
-    return events.filter(event => event.date === dateString);
+    // Normalize the input date to just year, month, day (no time)
+    const dateYear = date.getFullYear();
+    const dateMonth = date.getMonth();
+    const dateDay = date.getDate();
+    const normalizedDate = new Date(dateYear, dateMonth, dateDay);
+
+    return calendarEvents.filter(event => {
+      const eventStart = new Date(event.startDate);
+      const eventEnd = new Date(event.endDate);
+
+      // Normalize event dates to just year, month, day (no time)
+      const startYear = eventStart.getFullYear();
+      const startMonth = eventStart.getMonth();
+      const startDay = eventStart.getDate();
+      const normalizedStart = new Date(startYear, startMonth, startDay);
+
+      const endYear = eventEnd.getFullYear();
+      const endMonth = eventEnd.getMonth();
+      const endDay = eventEnd.getDate();
+      const normalizedEnd = new Date(endYear, endMonth, endDay);
+
+      // Check if the date falls within the event's date range (inclusive)
+      return (
+        normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd
+      );
+    });
   };
 
   const getWeekDays = () => {
@@ -107,11 +224,15 @@ function Calendar() {
     });
   };
 
-  const handleDateClick = day => {
-    setSelectedDate(day);
-    if (day.events.length > 0) {
-      setShowEventModal(true);
-    }
+  const handleEventClick = (event, e) => {
+    e.stopPropagation(); // Prevent day cell click
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowEventModal(false);
+    setSelectedEvent(null);
   };
 
   const isToday = date => {
@@ -119,20 +240,12 @@ function Calendar() {
     return date.toDateString() === today.toDateString();
   };
 
-  const getEventColor = category => {
-    switch (category) {
-      case 'Technology':
-        return 'bg-blue-500';
-      case 'Education':
-        return 'bg-green-500';
-      case 'Networking':
-        return 'bg-purple-500';
-      case 'Social':
-        return 'bg-pink-500';
-      case 'Business':
-        return 'bg-orange-500';
-      default:
-        return 'bg-gray-500';
+  const getEventColor = event => {
+    // Use event type to determine color
+    if (event.eventType === 'online') {
+      return 'bg-blue-500';
+    } else {
+      return 'bg-purple-500';
     }
   };
 
@@ -153,17 +266,19 @@ function Calendar() {
         {days.map((day, index) => (
           <div
             key={index}
-            onClick={() => handleDateClick(day)}
-            className={`min-h-[80px] bg-white p-1.5 cursor-pointer hover:bg-gray-50 transition-colors ${
+            className={`min-h-[80px] bg-white p-1.5 ${
               !day.isCurrentMonth ? 'text-gray-400' : ''
             } ${isToday(day.date) ? 'bg-purple-50 border-2 border-purple-200' : ''}`}
           >
-            <div className="text-xs font-medium mb-0.5">{day.date.getDate()}</div>
+            <div className="text-xs font-medium mb-0.5">
+              {day.date.getDate()}
+            </div>
             <div className="space-y-0.5">
               {day.events.slice(0, 2).map(event => (
                 <div
                   key={event.id}
-                  className={`text-[10px] px-1 py-0.5 rounded text-white truncate ${getEventColor(event.category)}`}
+                  onClick={e => handleEventClick(event, e)}
+                  className={`text-[10px] px-1 py-0.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventColor(event)}`}
                   title={event.title}
                 >
                   {event.title}
@@ -212,10 +327,11 @@ function Calendar() {
               {day.events.map(event => (
                 <div
                   key={event.id}
-                  className={`text-[10px] px-1.5 py-1 rounded text-white ${getEventColor(event.category)}`}
+                  onClick={e => handleEventClick(event, e)}
+                  className={`text-[10px] px-1 py-0.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventColor(event)}`}
+                  title={event.title}
                 >
-                  <div className="font-medium truncate">{event.title}</div>
-                  <div className="text-[10px] opacity-90">{event.time}</div>
+                  {event.title}
                 </div>
               ))}
             </div>
@@ -278,12 +394,15 @@ function Calendar() {
             </button>
           </div>
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
+            rounded="lg"
             onClick={() => setCurrentDate(new Date())}
-            className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            className="text-sm"
           >
             Today
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -302,7 +421,7 @@ function Calendar() {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-600">Total Events</p>
               <p className="text-xl font-bold text-gray-900">
-                {events.length}
+                {calendarEvents.length}
               </p>
             </div>
           </div>
@@ -316,8 +435,8 @@ function Calendar() {
               <p className="text-xs font-medium text-gray-600">This Month</p>
               <p className="text-xl font-bold text-gray-900">
                 {
-                  events.filter(e => {
-                    const eventDate = new Date(e.date);
+                  calendarEvents.filter(e => {
+                    const eventDate = new Date(e.startDate);
                     return (
                       eventDate.getMonth() === currentDate.getMonth() &&
                       eventDate.getFullYear() === currentDate.getFullYear()
@@ -338,7 +457,7 @@ function Calendar() {
                 Total Attendees
               </p>
               <p className="text-xl font-bold text-gray-900">
-                {events.reduce((sum, e) => sum + e.attendees, 0)}
+                {calendarEvents.reduce((sum, e) => sum + e.attendees, 0)}
               </p>
             </div>
           </div>
@@ -346,72 +465,11 @@ function Calendar() {
       </div>
 
       {/* Event Details Modal */}
-      {showEventModal && selectedDate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">
-                Events on {selectedDate.date.toLocaleDateString()}
-              </h2>
-            </div>
-            <div className="p-4">
-              {selectedDate.events.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-3">
-                  No events scheduled for this date
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedDate.events.map(event => (
-                    <div
-                      key={event.id}
-                      className="border border-gray-200 rounded-lg p-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-gray-900 mb-1.5">
-                            {event.title}
-                          </h3>
-                          <div className="space-y-1 text-xs text-gray-600">
-                            <div className="flex items-center">
-                              <Clock className="w-3.5 h-3.5 mr-1.5" />
-                              {event.time}
-                            </div>
-                            <div className="flex items-center">
-                              <MapPin className="w-3.5 h-3.5 mr-1.5" />
-                              {event.location}
-                            </div>
-                            <div className="flex items-center">
-                              <Users className="w-3.5 h-3.5 mr-1.5" />
-                              {event.attendees}/{event.maxAttendees} attendees
-                            </div>
-                          </div>
-                        </div>
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
-                            event.status === 'upcoming'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {event.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setShowEventModal(false)}
-                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CalendarEventModal
+        isOpen={showEventModal}
+        onClose={handleCloseModal}
+        event={selectedEvent}
+      />
     </div>
   );
 }

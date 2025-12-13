@@ -10,7 +10,7 @@ function Login() {
             <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4 whitespace-nowrap">
               Welcome to{' '}
               <span className="bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
-                Collaboraid
+                Unite
               </span>
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl lg:max-w-none text-center lg:text-center leading-relaxed text-justify">

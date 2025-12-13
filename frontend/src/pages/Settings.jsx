@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectOrganization, selectHasOrganization } from '../store/selectors';
+import {
+  fetchMyOrganization,
+  deleteOrganization,
+} from '../store/organizationSlice';
 import UploadModal from '../components/UploadModal';
 import RemovePhotoModal from '../components/RemovePhotoModal';
+import OrganizationForm from '../components/OrganizationForm';
 import { profilePhotoService } from '../services/profilePhotoService';
 import { userService } from '../services/userService';
 import Input from '../components/ui/Input';
@@ -22,11 +29,31 @@ import {
   LogOut,
   ArrowLeft,
   X,
+  Globe,
+  MapPin,
+  UserPlus,
+  Crown,
+  Trash2,
 } from 'lucide-react';
 
 function Settings() {
   const { user, isAuthenticated, setUser } = useAuth();
   const { showToast } = useToast();
+  const dispatch = useDispatch();
+
+  // Get organization from Redux
+  const organization = useSelector(selectOrganization);
+  const hasOrganization = useSelector(selectHasOrganization);
+
+  // State for showing organization form
+  const [showOrganizationForm, setShowOrganizationForm] = useState(false);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [isEditingOrganization, setIsEditingOrganization] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Organization is already fetched on login via AuthCheck component
+  // Only fetch when explicitly needed (after create/update operations)
 
   // View state: 'list' or 'detail'
   const [currentView, setCurrentView] = useState('list');
@@ -59,16 +86,6 @@ function Settings() {
 
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Organization states
-  const [organization, setOrganization] = useState(null);
-  const [organizationFormData, setOrganizationFormData] = useState({
-    name: '',
-    description: '',
-  });
-  const [joinCode, setJoinCode] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showJoinForm, setShowJoinForm] = useState(false);
 
   // Early return if user is not authenticated
   if (!isAuthenticated) {
@@ -297,7 +314,7 @@ function Settings() {
                       size="sm"
                       rounded="lg"
                       onClick={() => setIsUploadModalOpen(true)}
-                      className="text-xs"
+                      className="text-sm"
                     >
                       Upload Photo
                     </Button>
@@ -306,7 +323,7 @@ function Settings() {
                       size="sm"
                       rounded="lg"
                       onClick={handleRemovePhoto}
-                      className="text-xs"
+                      className="text-sm"
                     >
                       Remove
                     </Button>
@@ -393,7 +410,7 @@ function Settings() {
                   disabled={isLoading}
                   isLoading={isLoading}
                   icon={<Save className="w-3.5 h-3.5" />}
-                  className="text-xs"
+                  className="text-sm"
                 >
                   {isLoading ? 'Saving...' : 'Save Changes'}
                 </Button>
@@ -504,7 +521,7 @@ function Settings() {
                   rounded="lg"
                   disabled={isLoading}
                   isLoading={isLoading}
-                  className="text-xs"
+                  className="text-sm"
                 >
                   {isLoading ? 'Updating...' : 'Update Password'}
                 </Button>
@@ -538,50 +555,210 @@ function Settings() {
             </div>
           </div>
           <div className="p-4">
-            {organization ? (
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-100">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0">
-                      <Building2 className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-base font-semibold text-gray-900 mb-1">
-                        {organization.name}
-                      </h4>
-                      {organization.description && (
-                        <p className="text-xs text-gray-600 mb-2">
-                          {organization.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-3 text-xs">
-                        <div className="flex items-center space-x-1.5 text-gray-600">
-                          <Users className="w-3.5 h-3.5" />
-                          <span>
-                            {organization.memberCount || 0} member
-                            {(organization.memberCount || 0) !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        {organization.role && (
-                          <div className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
-                            {organization.role === 'owner' ? 'Owner' : 'Member'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+            {isEditingOrganization && organization ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-base font-semibold text-gray-900">
+                    Edit Organization
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    rounded="lg"
+                    onClick={() => setIsEditingOrganization(false)}
+                    className="text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <OrganizationForm
+                  organization={organization}
+                  onSuccess={() => {
+                    setIsEditingOrganization(false);
+                    dispatch(fetchMyOrganization());
+                    // Toast removed - OrganizationForm already shows success toast
+                  }}
+                  onCancel={() => setIsEditingOrganization(false)}
+                />
+              </div>
+            ) : showOrganizationForm ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-base font-semibold text-gray-900">
+                    Create Organization
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    rounded="lg"
+                    onClick={() => {
+                      setShowOrganizationForm(false);
+                      setShowJoinForm(false);
+                    }}
+                    className="text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <OrganizationForm
+                  onSuccess={() => {
+                    setShowOrganizationForm(false);
+                    setShowJoinForm(false);
+                    dispatch(fetchMyOrganization());
+                    // Toast removed - OrganizationForm already shows success toast
+                  }}
+                  onCancel={() => {
+                    setShowOrganizationForm(false);
+                    setShowJoinForm(false);
+                  }}
+                />
+              </div>
+            ) : showJoinForm ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-base font-semibold text-gray-900">
+                    Join Organization
+                  </h4>
                   <Button
                     variant="outline"
                     size="sm"
                     rounded="lg"
                     onClick={() => {
                       setShowJoinForm(false);
-                      setShowCreateForm(false);
+                      setShowOrganizationForm(false);
+                      setJoinCode('');
                     }}
-                    icon={<LogOut className="w-3.5 h-3.5" />}
-                    className="text-xs"
+                    className="text-sm"
                   >
-                    Leave
+                    Cancel
+                  </Button>
+                </div>
+                <form
+                  onSubmit={async e => {
+                    e.preventDefault();
+                    if (!joinCode.trim()) {
+                      showToast('Please enter a join code', 'error');
+                      return;
+                    }
+                    // TODO: Implement join organization API call
+                    showToast(
+                      'Organization join feature will be implemented soon',
+                      'info'
+                    );
+                    setShowJoinForm(false);
+                    setJoinCode('');
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Invitation Code <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="text"
+                      value={joinCode}
+                      onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="Enter organization invitation code"
+                      required
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter the invitation code provided by the organization
+                      owner
+                    </p>
+                  </div>
+                  <div className="flex space-x-3 pt-2 justify-end">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      rounded="lg"
+                      disabled={!joinCode.trim() || isLoading}
+                      isLoading={isLoading}
+                      className="text-sm"
+                    >
+                      Join Organization
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            ) : hasOrganization && organization ? (
+              <div className="space-y-4">
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-100">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0">
+                      <Building2 className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-base font-semibold text-gray-900 mb-1">
+                        {organization.organizationName}
+                      </h4>
+                      {organization.description && (
+                        <p className="text-xs text-gray-600 mb-3">
+                          {organization.description}
+                        </p>
+                      )}
+                      <div className="space-y-2">
+                        {organization.organizationUrl && (
+                          <div className="flex items-center space-x-1.5 text-xs text-gray-600">
+                            <Globe className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                            <a
+                              href={organization.organizationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 hover:text-purple-700 hover:underline truncate"
+                            >
+                              {organization.organizationUrl}
+                            </a>
+                          </div>
+                        )}
+                        {organization.location?.address && (
+                          <div className="flex items-start space-x-1.5 text-xs text-gray-600">
+                            <MapPin className="w-3.5 h-3.5 text-purple-600 flex-shrink-0 mt-0.5" />
+                            <span className="break-words">
+                              {organization.location.address}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
+                        <div className="flex items-center space-x-1.5 text-gray-600">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>
+                              {organization.organizationMembers?.length || 0}{' '}
+                              member
+                              {(organization.organizationMembers?.length ||
+                                0) !== 1
+                                ? 's'
+                                : ''}
+                          </span>
+                        </div>
+                          <div className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
+                            Creator
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    rounded="lg"
+                    onClick={() => setIsEditingOrganization(true)}
+                    className="text-sm"
+                  >
+                    Edit Organization
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    rounded="lg"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-sm border-red-200 text-red-600 hover:bg-red-50"
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
+                  >
+                    Delete Organization
                   </Button>
                 </div>
               </div>
@@ -595,7 +772,8 @@ function Settings() {
                     No Organization
                   </h4>
                   <p className="text-xs text-gray-600 mb-4">
-                    You need to create or join an organization to create events.
+                    You need to create or join an organization before you can
+                    create events.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
                     <Button
@@ -603,11 +781,11 @@ function Settings() {
                       size="sm"
                       rounded="lg"
                       onClick={() => {
-                        setShowCreateForm(true);
+                        setShowOrganizationForm(true);
                         setShowJoinForm(false);
                       }}
                       icon={<Plus className="w-3.5 h-3.5" />}
-                      className="text-xs"
+                      className="text-sm"
                     >
                       Create Organization
                     </Button>
@@ -617,10 +795,10 @@ function Settings() {
                       rounded="lg"
                       onClick={() => {
                         setShowJoinForm(true);
-                        setShowCreateForm(false);
+                        setShowOrganizationForm(false);
                       }}
                       icon={<Users className="w-3.5 h-3.5" />}
-                      className="text-xs"
+                      className="text-sm"
                     >
                       Join Organization
                     </Button>
@@ -628,172 +806,117 @@ function Settings() {
                 </div>
               </div>
             )}
-
-            {showCreateForm && !organization && (
-              <div className="bg-white rounded-xl p-4 border-2 border-purple-200 shadow-sm mt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-semibold text-gray-900">
-                    Create New Organization
-                  </h4>
-                  <button
-                    onClick={() => setShowCreateForm(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
-                <form
-                  onSubmit={async e => {
-                    e.preventDefault();
-                    showToast(
-                      'Organization creation will be implemented soon',
-                      'info'
-                    );
-                  }}
-                  className="space-y-3"
-                >
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                      Organization Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      value={organizationFormData.name}
-                      onChange={e =>
-                        setOrganizationFormData({
-                          ...organizationFormData,
-                          name: e.target.value,
-                        })
-                      }
-                      placeholder="Enter organization name"
-                      required
-                      minLength={3}
-                      maxLength={50}
-                      className="text-sm"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      3-50 characters
-                    </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Members detail view
+  const renderMembersDetailView = () => {
+    if (!hasOrganization || !organization) {
+      return null;
+    }
+
+    const members = organization.organizationMembers || [];
+    const isCreator =
+      user?.id === organization.organizationCreator?._id ||
+      user?._id === organization.organizationCreator?._id ||
+      user?.id === organization.organizationCreator ||
+      user?._id === organization.organizationCreator;
+
+    return (
+      <div className="space-y-4">
+        {/* Members Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                  <Users className="w-4 h-4 text-green-600" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                      Description
-                    </label>
-                    <Textarea
-                      value={organizationFormData.description}
-                      onChange={e =>
-                        setOrganizationFormData({
-                          ...organizationFormData,
-                          description: e.target.value,
-                        })
-                      }
-                      placeholder="Describe your organization (optional)"
-                      rows="3"
-                      maxLength={200}
-                      className="text-sm"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      {organizationFormData.description.length}/200 characters
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Organization Members
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {members.length}{' '}
+                    {members.length === 1 ? 'member' : 'members'} in your
+                    organization
                     </p>
                   </div>
-                  <div className="flex justify-end space-x-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      rounded="lg"
-                      onClick={() => {
-                        setShowCreateForm(false);
-                        setOrganizationFormData({ name: '', description: '' });
-                      }}
-                      className="text-xs"
+              </div>
+            </div>
+          </div>
+          <div className="p-4">
+            {members.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 text-gray-400" />
+                </div>
+                <p className="text-sm text-gray-600">No members found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member, index) => {
+                  const memberId = member._id || member;
+                  const memberName = member.name || 'Unknown Member';
+                  const memberEmail = member.email || '';
+                  const memberPhoto = member.profilePhoto;
+                  const isMemberCreator =
+                    memberId === organization.organizationCreator?._id ||
+                    memberId ===
+                      organization.organizationCreator?._id?.toString() ||
+                    memberId === organization.organizationCreator?.toString() ||
+                    memberId ===
+                      (organization.organizationCreator?._id ||
+                        organization.organizationCreator);
+
+                  return (
+                    <div
+                      key={memberId || index}
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-purple-50 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
                     >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      rounded="lg"
-                      disabled={isLoading || !organizationFormData.name.trim()}
-                      isLoading={isLoading}
-                      className="text-xs"
-                    >
-                      Create Organization
-                    </Button>
+                      <div className="flex items-center space-x-3 flex-1">
+                        <div className="relative">
+                          {memberPhoto ? (
+                            <img
+                              src={memberPhoto}
+                              alt={memberName}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border-2 border-white shadow-sm">
+                              <User className="w-5 h-5 text-white" />
                   </div>
-                </form>
+                          )}
+                          {isMemberCreator && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                              <Crown className="w-3 h-3 text-yellow-900" />
               </div>
             )}
-
-            {showJoinForm && !organization && (
-              <div className="bg-white rounded-xl p-4 border-2 border-purple-200 shadow-sm mt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-semibold text-gray-900">
-                    Join Organization
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-semibold text-gray-900 truncate">
+                              {memberName}
                   </h4>
-                  <button
-                    onClick={() => setShowJoinForm(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                            {isMemberCreator && (
+                              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-semibold flex-shrink-0">
+                                Creator
+                              </span>
+                            )}
                 </div>
-                <form
-                  onSubmit={async e => {
-                    e.preventDefault();
-                    showToast(
-                      'Organization join will be implemented soon',
-                      'info'
-                    );
-                  }}
-                  className="space-y-3"
-                >
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                      Join Code <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      value={joinCode}
-                      onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                      placeholder="Enter organization join code"
-                      required
-                      minLength={4}
-                      maxLength={20}
-                      className="text-sm"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      Enter the code provided by the organization owner
-                    </p>
+                          {memberEmail && (
+                            <p className="text-xs text-gray-500 truncate mt-0.5">
+                              {memberEmail}
+                            </p>
+                          )}
                   </div>
-                  <div className="flex justify-end space-x-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      rounded="lg"
-                      onClick={() => {
-                        setShowJoinForm(false);
-                        setJoinCode('');
-                      }}
-                      className="text-xs"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      rounded="lg"
-                      disabled={isLoading || !joinCode.trim()}
-                      isLoading={isLoading}
-                      className="text-xs"
-                    >
-                      Join Organization
-                    </Button>
                   </div>
-                </form>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -802,7 +925,7 @@ function Settings() {
     );
   };
 
-  // Render list view with just two groups
+  // Render list view with groups
   const renderListView = () => {
     return (
       <div className="space-y-4">
@@ -851,6 +974,31 @@ function Settings() {
             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-all duration-200 flex-shrink-0" />
           </button>
         </div>
+
+        {/* Members - Only show if user has organization */}
+        {hasOrganization && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => handleGroupClick('members', 'Members')}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-all duration-200 group"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-all duration-200">
+                  <Users className="w-4 h-4 text-green-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-base font-semibold text-gray-900 group-hover:text-green-700 transition-colors duration-200">
+                    Members
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Invite and manage organization members
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-all duration-200 flex-shrink-0" />
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -896,6 +1044,8 @@ function Settings() {
             ? renderAccountDetailView()
             : selectedGroup?.id === 'organization'
               ? renderOrganizationDetailView()
+              : selectedGroup?.id === 'members'
+                ? renderMembersDetailView()
               : null}
       </div>
 
@@ -914,6 +1064,65 @@ function Settings() {
         onConfirm={handleConfirmRemovePhoto}
         currentPhoto={user?.profilePhoto}
       />
+
+      {/* Delete Organization Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">
+                Delete Organization
+              </h2>
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete your organization? This action
+                cannot be undone.
+              </p>
+              <div className="flex space-x-3 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  rounded="lg"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="lg"
+                  onClick={async () => {
+                    try {
+                      if (!organization?._id) return;
+                      await dispatch(
+                        deleteOrganization(organization._id)
+                      ).unwrap();
+                      showToast(
+                        'Organization deleted successfully!',
+                        'success'
+                      );
+                      setShowDeleteConfirm(false);
+                      // Redux will automatically clear the organization state
+                    } catch (error) {
+                      showToast(
+                        error || 'Failed to delete organization',
+                        'error'
+                      );
+                    }
+                  }}
+                  className="text-sm bg-red-600 hover:bg-red-700"
+                  disabled={isLoading}
+                  isLoading={isLoading}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

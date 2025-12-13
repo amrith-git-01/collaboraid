@@ -1,4 +1,5 @@
-import { API_BASE_URL } from '../config';
+import api from './api';
+import { API_ENDPOINTS } from '../config';
 
 const locationService = {
   /**
@@ -9,30 +10,24 @@ const locationService = {
    */
   searchPlaces: async (query, limit = 5) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/collaboraid/api/location/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      const response = await api.get(
+        `${API_ENDPOINTS.LOCATION}/search`,
         {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
+          params: {
+            q: query,
+            limit: limit,
           },
-          credentials: 'include', // This sends cookies automatically
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to search locations');
+      if (response.data.status === 'success') {
+        return response.data.data.places || [];
       }
 
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        return data.data.places || [];
-      }
-
+      console.warn('Location search returned non-success status:', response.data);
       return [];
     } catch (error) {
+      console.error('Location search error:', error);
       throw error;
     }
   },

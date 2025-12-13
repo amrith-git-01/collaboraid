@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
@@ -24,8 +24,6 @@ import {
   setEventToLeave,
   resetNewEvent,
   setActiveTab,
-  setHasInitialized,
-  setIsFetching,
   clearError,
   updateNewEvent,
 } from '../store/eventsSlice';
@@ -48,9 +46,6 @@ import {
 } from '../store/selectors';
 
 function Events() {
-  // Generate unique instance ID for debugging
-  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
-
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const dispatch = useDispatch();
@@ -69,99 +64,10 @@ function Events() {
   const filteredMyEvents = useSelector(selectFilteredMyEvents);
   const filteredJoinEvents = useSelector(selectFilteredJoinEvents);
 
-  // Refs for preventing duplicate API calls
-  const abortControllerRef = useRef(null);
-  const hasInitializedRef = useRef(false);
-  const isFetchingRef = useRef(false);
-
-  console.log(
-    `[${new Date().toISOString()}] Events component render [${instanceId.current}] - isAuthenticated:`,
-    isAuthenticated,
-    'user:',
-    user?.id
-  );
-
-  // Main useEffect for initial data fetch
-  useEffect(() => {
-    console.log(
-      `[${new Date().toISOString()}] useEffect triggered [${instanceId.current}] - isAuthenticated:`,
-      isAuthenticated,
-      'hasInitialized:',
-      hasInitializedRef.current,
-      'isFetching:',
-      isFetchingRef.current
-    );
-
-    // Only run once when component mounts and user is authenticated
-    if (hasInitializedRef.current || !isAuthenticated) {
-      return;
-    }
-
-    // Mark as initialized immediately to prevent duplicate calls
-    hasInitializedRef.current = true;
-    dispatch(setHasInitialized(true));
-    console.log(
-      `[${new Date().toISOString()}] Initializing Events component [${instanceId.current}]...`
-    );
-
-    // Fetch events using Redux
-    const performFetch = async () => {
-      // Prevent multiple simultaneous fetches
-      if (isFetchingRef.current) {
-        console.log('Fetch already in progress, skipping...');
-        return;
-      }
-
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Create new abort controller
-      abortControllerRef.current = new AbortController();
-      isFetchingRef.current = true;
-      dispatch(setIsFetching(true));
-
-      try {
-        console.log(
-          `[${new Date().toISOString()}] Starting to fetch events [${instanceId.current}]...`
-        );
-
-        // Fetch all events and user events using Redux thunks
-        await Promise.all([
-          dispatch(fetchAllEvents()),
-          dispatch(fetchUserEvents()),
-        ]);
-
-        console.log(
-          `[${new Date().toISOString()}] Events fetched successfully [${instanceId.current}]`
-        );
-      } catch (error) {
-        // Only show error if it's not an abort error
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching events:', error);
-          showToast('Failed to load events', 'error');
-        }
-      } finally {
-        isFetchingRef.current = false;
-        dispatch(setIsFetching(false));
-        abortControllerRef.current = null;
-      }
-    };
-
-    // Execute the fetch
-    performFetch();
-
-    // Cleanup function
-    return () => {
-      console.log(
-        `[${new Date().toISOString()}] useEffect cleanup [${instanceId.current}] - aborting any ongoing requests`
-      );
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [isAuthenticated, dispatch]);
+  // Events are now fetched:
+  // 1. When user logs in (in AuthCheck.jsx)
+  // 2. When refresh button is pressed (handleRefresh)
+  // 3. When a new event is created (onSuccess callback in CreateEventForm)
 
   // Handle errors
   useEffect(() => {
@@ -266,7 +172,6 @@ function Events() {
     }
   };
 
-
   const handleTabChange = tab => {
     dispatch(setActiveTab(tab));
   };
@@ -277,7 +182,6 @@ function Events() {
         dispatch(fetchAllEvents()),
         dispatch(fetchUserEvents()),
       ]);
-      showToast('Events refreshed successfully!', 'success');
     } catch (error) {
       showToast('Failed to refresh events', 'error');
     }
@@ -289,7 +193,7 @@ function Events() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -419,7 +323,6 @@ function Events() {
             event={eventToLeave}
           />
         )}
-
       </div>
     </div>
   );

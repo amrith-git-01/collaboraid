@@ -2,22 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import Input from './ui/Input';
 import Textarea from './ui/Textarea';
 import Button from './ui/Button';
-import { 
-  MapPin, 
-  Users, 
-  Calendar, 
-  Clock, 
-  Image as ImageIcon, 
-  Globe, 
+import {
+  MapPin,
+  Users,
+  Calendar,
+  Clock,
+  Image as ImageIcon,
+  Globe,
   Info,
   Settings as SettingsIcon,
   Lock,
   UserPlus,
   FileText,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from 'lucide-react';
 import ImageSelectionModal from './ImageSelectionModal';
 import LocationSearch from './LocationSearch';
@@ -33,11 +34,17 @@ import {
   setEventToEdit,
   setActiveTab,
 } from '../store/eventsSlice';
-import { selectNewEvent, selectEventToEdit, selectShowStartDatePicker, selectShowEndDatePicker } from '../store/selectors';
+import {
+  selectNewEvent,
+  selectEventToEdit,
+  selectShowStartDatePicker,
+  selectShowEndDatePicker,
+} from '../store/selectors';
 
 const CreateEventForm = ({ onSuccess }) => {
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const newEvent = useSelector(selectNewEvent);
@@ -61,26 +68,28 @@ const CreateEventForm = ({ onSuccess }) => {
         ? new Date(eventToEdit.eventEndDate).toISOString().slice(0, 16)
         : '';
 
-      dispatch(updateNewEvent({
-        eventName: eventToEdit.eventName || '',
-        eventDescription: eventToEdit.eventDescription || '',
-        eventType: eventToEdit.eventType || '',
-        eventAccessType: eventToEdit.eventAccessType || '',
-        eventJoinCode: eventToEdit.eventJoinCode || '',
-        eventStartDate: startDate,
-        eventEndDate: endDate,
-        eventImage: eventToEdit.eventImage || '',
-        eventImageName: eventToEdit.eventImageName || '',
-        eventMaxAttendees: eventToEdit.eventMaxAttendees || 1,
-        online: {
-          eventPlatform: eventToEdit.online?.eventPlatform || '',
-          eventLink: eventToEdit.online?.eventLink || '',
-        },
-        offline: {
-          eventLocation: eventToEdit.offline?.eventLocation || '',
-          coordinates: eventToEdit.offline?.coordinates || null,
-        },
-      }));
+      dispatch(
+        updateNewEvent({
+          eventName: eventToEdit.eventName || '',
+          eventDescription: eventToEdit.eventDescription || '',
+          eventType: eventToEdit.eventType || '',
+          eventAccessType: eventToEdit.eventAccessType || '',
+          eventJoinCode: eventToEdit.eventJoinCode || '',
+          eventStartDate: startDate,
+          eventEndDate: endDate,
+          eventImage: eventToEdit.eventImage || '',
+          eventImageName: eventToEdit.eventImageName || '',
+          eventMaxAttendees: eventToEdit.eventMaxAttendees || 1,
+          online: {
+            eventPlatform: eventToEdit.online?.eventPlatform || '',
+            eventLink: eventToEdit.online?.eventLink || '',
+          },
+          offline: {
+            eventLocation: eventToEdit.offline?.eventLocation || '',
+            coordinates: eventToEdit.offline?.coordinates || null,
+          },
+        })
+      );
 
       // Restore location data for map display
       if (eventToEdit.offline?.coordinates) {
@@ -111,11 +120,13 @@ const CreateEventForm = ({ onSuccess }) => {
   }
 
   const handleImageSelect = image => {
-    dispatch(updateNewEvent({
-      ...newEvent,
-      eventImage: image.src,
-      eventImageName: image.name,
-    }));
+    dispatch(
+      updateNewEvent({
+        ...newEvent,
+        eventImage: image.src,
+        eventImageName: image.name,
+      })
+    );
     setShowImageModal(false);
   };
 
@@ -135,9 +146,11 @@ const CreateEventForm = ({ onSuccess }) => {
     if (!desc) {
       validationErrors.eventDescription = 'Description is required';
     } else if (desc.length < 10) {
-      validationErrors.eventDescription = 'Description must be at least 10 characters';
+      validationErrors.eventDescription =
+        'Description must be at least 10 characters';
     } else if (desc.length > 300) {
-      validationErrors.eventDescription = 'Description cannot exceed 300 characters';
+      validationErrors.eventDescription =
+        'Description cannot exceed 300 characters';
     }
 
     if (!newEvent.eventType) {
@@ -162,7 +175,10 @@ const CreateEventForm = ({ onSuccess }) => {
     }
     if (!newEvent.eventEndDate) {
       validationErrors.eventEndDate = 'End date and time are required';
-    } else if (newEvent.eventStartDate && new Date(newEvent.eventEndDate) <= new Date(newEvent.eventStartDate)) {
+    } else if (
+      newEvent.eventStartDate &&
+      new Date(newEvent.eventEndDate) <= new Date(newEvent.eventStartDate)
+    ) {
       validationErrors.eventEndDate = 'End date must be after start date';
     }
 
@@ -183,7 +199,8 @@ const CreateEventForm = ({ onSuccess }) => {
         validationErrors.eventLocation = 'Location is required';
       }
       if (!newEvent.offline?.coordinates) {
-        validationErrors.eventCoordinates = 'Please select a location from the search results';
+        validationErrors.eventCoordinates =
+          'Please select a location from the search results';
       }
     }
 
@@ -192,13 +209,14 @@ const CreateEventForm = ({ onSuccess }) => {
     }
 
     if (!newEvent.eventMaxAttendees || newEvent.eventMaxAttendees < 1) {
-      validationErrors.eventMaxAttendees = 'Maximum attendees must be at least 1';
+      validationErrors.eventMaxAttendees =
+        'Maximum attendees must be at least 1';
     }
 
     return validationErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
 
     const validationErrors = validate();
@@ -212,31 +230,41 @@ const CreateEventForm = ({ onSuccess }) => {
 
     try {
       if (isEditMode) {
-        await dispatch(updateEvent({ eventId: eventToEdit._id, eventData: newEvent })).unwrap();
+        await dispatch(
+          updateEvent({ eventId: eventToEdit._id, eventData: newEvent })
+        ).unwrap();
         showToast('Event updated successfully!', 'success');
         dispatch(setEventToEdit(null));
       } else {
-        await dispatch(createEvent(newEvent)).unwrap();
+        // Automatically include organization ID from Redux
+        const eventDataWithOrganization = {
+          ...newEvent,
+          eventOrganization: organization?._id,
+        };
+        await dispatch(createEvent(eventDataWithOrganization)).unwrap();
         showToast('Event created successfully!', 'success');
         dispatch(resetNewEvent());
       }
-      
+
       // Switch to myEvents tab and call onSuccess callback
       dispatch(setActiveTab('myEvents'));
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
-      showToast(error || (isEditMode ? 'Failed to update event' : 'Failed to create event'), 'error');
+      showToast(
+        error ||
+          (isEditMode ? 'Failed to update event' : 'Failed to create event'),
+        'error'
+      );
     } finally {
       setIsLoading(false);
     }
   };
-  const renderError = (field) =>
+  const renderError = field =>
     errors[field] ? (
       <p className="text-xs text-red-600 mt-1.5">{errors[field]}</p>
     ) : null;
-
 
   const handleCancel = () => {
     dispatch(setEventToEdit(null));
@@ -272,7 +300,7 @@ const CreateEventForm = ({ onSuccess }) => {
             title="Basic Information"
             description="Provide the essential details about your event"
           />
-          
+
           <div className="space-y-6">
             {/* Event Name */}
             <div>
@@ -285,8 +313,10 @@ const CreateEventForm = ({ onSuccess }) => {
                 onChange={e => {
                   if (errors.eventName) {
                     setErrors(prev => ({ ...prev, eventName: '' }));
-                }
-                  dispatch(updateNewEvent({ ...newEvent, eventName: e.target.value }));
+                  }
+                  dispatch(
+                    updateNewEvent({ ...newEvent, eventName: e.target.value })
+                  );
                 }}
                 placeholder="Enter a descriptive event name"
                 className="text-base"
@@ -306,10 +336,12 @@ const CreateEventForm = ({ onSuccess }) => {
                   if (errors.eventDescription) {
                     setErrors(prev => ({ ...prev, eventDescription: '' }));
                   }
-                  dispatch(updateNewEvent({
-                    ...newEvent,
-                    eventDescription: e.target.value,
-                  }));
+                  dispatch(
+                    updateNewEvent({
+                      ...newEvent,
+                      eventDescription: e.target.value,
+                    })
+                  );
                 }}
                 placeholder="Describe what your event is about, what attendees can expect, and any important details..."
                 rows={5}
@@ -330,7 +362,7 @@ const CreateEventForm = ({ onSuccess }) => {
             title="Event Type & Access"
             description="Choose how your event will be conducted and who can join"
           />
-          
+
           <div className="space-y-6">
             {/* Event Type */}
             <div>
@@ -340,7 +372,11 @@ const CreateEventForm = ({ onSuccess }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => dispatch(updateNewEvent({ ...newEvent, eventType: 'offline' }))}
+                  onClick={() =>
+                    dispatch(
+                      updateNewEvent({ ...newEvent, eventType: 'offline' })
+                    )
+                  }
                   className={`relative p-5 border-2 rounded-xl transition-all duration-300 group ${
                     newEvent.eventType === 'offline'
                       ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg shadow-purple-200'
@@ -399,7 +435,11 @@ const CreateEventForm = ({ onSuccess }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => dispatch(updateNewEvent({ ...newEvent, eventType: 'online' }))}
+                  onClick={() =>
+                    dispatch(
+                      updateNewEvent({ ...newEvent, eventType: 'online' })
+                    )
+                  }
                   className={`relative p-5 border-2 rounded-xl transition-all duration-300 group ${
                     newEvent.eventType === 'online'
                       ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg shadow-purple-200'
@@ -469,11 +509,13 @@ const CreateEventForm = ({ onSuccess }) => {
                 <button
                   type="button"
                   onClick={() =>
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      eventAccessType: 'freeForAll',
-                      eventJoinCode: '',
-                    }))
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        eventAccessType: 'freeForAll',
+                        eventJoinCode: '',
+                      })
+                    )
                   }
                   className={`relative p-5 border-2 rounded-xl transition-all duration-300 group ${
                     newEvent.eventAccessType === 'freeForAll'
@@ -500,7 +542,7 @@ const CreateEventForm = ({ onSuccess }) => {
                             : 'text-gray-900 group-hover:text-purple-900'
                         }`}
                       >
-                        Free for All
+                        Free
                       </h3>
                       <p
                         className={`text-sm ${
@@ -534,10 +576,12 @@ const CreateEventForm = ({ onSuccess }) => {
                 <button
                   type="button"
                   onClick={() =>
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      eventAccessType: 'codeToJoin',
-                    }))
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        eventAccessType: 'codeToJoin',
+                      })
+                    )
                   }
                   className={`relative p-5 border-2 rounded-xl transition-all duration-300 group ${
                     newEvent.eventAccessType === 'codeToJoin'
@@ -564,7 +608,7 @@ const CreateEventForm = ({ onSuccess }) => {
                             : 'text-gray-900 group-hover:text-purple-900'
                         }`}
                       >
-                        Code Protected
+                        Invitation
                       </h3>
                       <p
                         className={`text-sm ${
@@ -573,7 +617,7 @@ const CreateEventForm = ({ onSuccess }) => {
                             : 'text-gray-500 group-hover:text-purple-700'
                         }`}
                       >
-                        Requires an invitation code to join
+                        Requires an invitation to join
                       </p>
                     </div>
                   </div>
@@ -612,10 +656,12 @@ const CreateEventForm = ({ onSuccess }) => {
                     if (errors.eventJoinCode) {
                       setErrors(prev => ({ ...prev, eventJoinCode: '' }));
                     }
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      eventJoinCode: e.target.value,
-                    }));
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        eventJoinCode: e.target.value,
+                      })
+                    );
                   }}
                   placeholder="Enter a unique join code (e.g., EVENT2024)"
                   className="bg-white"
@@ -636,7 +682,7 @@ const CreateEventForm = ({ onSuccess }) => {
             title="Schedule"
             description="Set the start and end times for your event"
           />
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -648,7 +694,9 @@ const CreateEventForm = ({ onSuccess }) => {
                     ? 'border-purple-500 bg-purple-50 shadow-md'
                     : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md'
                 } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                onClick={() => !isLoading && dispatch(setShowStartDatePicker(true))}
+                onClick={() =>
+                  !isLoading && dispatch(setShowStartDatePicker(true))
+                }
               >
                 <div className="flex items-center space-x-4">
                   <div
@@ -664,23 +712,25 @@ const CreateEventForm = ({ onSuccess }) => {
                     {newEvent.eventStartDate ? (
                       <>
                         <div className="font-bold text-gray-900 text-base mb-1">
-                          {new Date(
-                            newEvent.eventStartDate
-                          ).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {new Date(newEvent.eventStartDate).toLocaleDateString(
+                            'en-US',
+                            {
+                              weekday: 'long',
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            }
+                          )}
                         </div>
                         <div className="text-sm text-purple-700 font-medium">
-                          {new Date(
-                            newEvent.eventStartDate
-                          ).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                          })}
+                          {new Date(newEvent.eventStartDate).toLocaleTimeString(
+                            'en-US',
+                            {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true,
+                            }
+                          )}
                         </div>
                       </>
                     ) : (
@@ -709,7 +759,9 @@ const CreateEventForm = ({ onSuccess }) => {
                     ? 'border-purple-500 bg-purple-50 shadow-md'
                     : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md'
                 } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                onClick={() => !isLoading && dispatch(setShowEndDatePicker(true))}
+                onClick={() =>
+                  !isLoading && dispatch(setShowEndDatePicker(true))
+                }
               >
                 <div className="flex items-center space-x-4">
                   <div
@@ -725,23 +777,25 @@ const CreateEventForm = ({ onSuccess }) => {
                     {newEvent.eventEndDate ? (
                       <>
                         <div className="font-bold text-gray-900 text-base mb-1">
-                          {new Date(
-                            newEvent.eventEndDate
-                          ).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {new Date(newEvent.eventEndDate).toLocaleDateString(
+                            'en-US',
+                            {
+                              weekday: 'long',
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            }
+                          )}
                         </div>
                         <div className="text-sm text-purple-700 font-medium">
-                          {new Date(
-                            newEvent.eventEndDate
-                          ).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                          })}
+                          {new Date(newEvent.eventEndDate).toLocaleTimeString(
+                            'en-US',
+                            {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true,
+                            }
+                          )}
                         </div>
                       </>
                     ) : (
@@ -770,7 +824,7 @@ const CreateEventForm = ({ onSuccess }) => {
               title="Online Platform Details"
               description="Provide the platform and link for your virtual event"
             />
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -783,13 +837,15 @@ const CreateEventForm = ({ onSuccess }) => {
                     if (errors.eventPlatform) {
                       setErrors(prev => ({ ...prev, eventPlatform: '' }));
                     }
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      online: {
-                        ...newEvent.online,
-                        eventPlatform: e.target.value,
-                      },
-                    }));
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        online: {
+                          ...newEvent.online,
+                          eventPlatform: e.target.value,
+                        },
+                      })
+                    );
                   }}
                   placeholder="e.g., Zoom, Google Meet, Microsoft Teams, Webex"
                   className="text-base"
@@ -809,13 +865,15 @@ const CreateEventForm = ({ onSuccess }) => {
                       if (errors.eventLink) {
                         setErrors(prev => ({ ...prev, eventLink: '' }));
                       }
-                      dispatch(updateNewEvent({
-                        ...newEvent,
-                        online: {
-                          ...newEvent.online,
-                          eventLink: e.target.value,
-                        },
-                      }));
+                      dispatch(
+                        updateNewEvent({
+                          ...newEvent,
+                          online: {
+                            ...newEvent.online,
+                            eventLink: e.target.value,
+                          },
+                        })
+                      );
                     }}
                     placeholder="https://meet.google.com/..."
                     className="text-base pl-12"
@@ -834,7 +892,7 @@ const CreateEventForm = ({ onSuccess }) => {
               title="Event Location"
               description="Search and select the physical location for your event"
             />
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -842,7 +900,7 @@ const CreateEventForm = ({ onSuccess }) => {
                 </label>
                 <LocationSearch
                   value={newEvent.offline?.eventLocation || ''}
-                  onChange={(value) => {
+                  onChange={value => {
                     if (errors.eventLocation || errors.eventCoordinates) {
                       setErrors(prev => ({
                         ...prev,
@@ -850,39 +908,48 @@ const CreateEventForm = ({ onSuccess }) => {
                         eventCoordinates: '',
                       }));
                     }
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      offline: {
-                        ...newEvent.offline,
-                        eventLocation: value,
-                      },
-                    }));
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        offline: {
+                          ...newEvent.offline,
+                          eventLocation: value,
+                        },
+                      })
+                    );
                   }}
-                  onLocationSelect={(location) => {
+                  onLocationSelect={location => {
                     setSelectedLocationData(location);
                     if (location) {
-                      dispatch(updateNewEvent({
-                        ...newEvent,
-                        offline: {
-                          ...newEvent.offline,
-                          eventLocation: location.displayName || location.address,
-                          coordinates: {
-                            lat: location.lat,
-                            lon: location.lon,
+                      dispatch(
+                        updateNewEvent({
+                          ...newEvent,
+                          offline: {
+                            ...newEvent.offline,
+                            eventLocation:
+                              location.displayName || location.address,
+                            coordinates: {
+                              lat: location.lat,
+                              lon: location.lon,
+                            },
                           },
-                        },
-                      }));
+                        })
+                      );
                     } else {
-                      dispatch(updateNewEvent({
-                        ...newEvent,
-                        offline: {
-                          ...newEvent.offline,
-                          coordinates: null,
-                        },
-                      }));
+                      dispatch(
+                        updateNewEvent({
+                          ...newEvent,
+                          offline: {
+                            ...newEvent.offline,
+                            coordinates: null,
+                          },
+                        })
+                      );
                     }
                   }}
                   placeholder="Search for event location..."
+                  error={!!(errors.eventLocation || errors.eventCoordinates)}
+                  errorColor="red"
                 />
                 {renderError('eventLocation')}
                 {renderError('eventCoordinates')}
@@ -908,7 +975,7 @@ const CreateEventForm = ({ onSuccess }) => {
             title="Media & Settings"
             description="Add an event image and configure attendance limits"
           />
-          
+
           <div className="space-y-6">
             {/* Event Image */}
             <div>
@@ -935,7 +1002,8 @@ const CreateEventForm = ({ onSuccess }) => {
                       Event Cover Image
                     </h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Choose an image that represents your event. This will be displayed to all attendees.
+                      Choose an image that represents your event. This will be
+                      displayed to all attendees.
                     </p>
                     <div className="flex flex-wrap gap-3">
                       <Button
@@ -950,11 +1018,13 @@ const CreateEventForm = ({ onSuccess }) => {
                         <Button
                           type="button"
                           onClick={() =>
-                            dispatch(updateNewEvent({
-                              ...newEvent,
-                              eventImage: '',
-                              eventImageName: '',
-                            }))
+                            dispatch(
+                              updateNewEvent({
+                                ...newEvent,
+                                eventImage: '',
+                                eventImageName: '',
+                              })
+                            )
                           }
                           disabled={isLoading}
                           variant="outline"
@@ -983,10 +1053,12 @@ const CreateEventForm = ({ onSuccess }) => {
                     if (errors.eventMaxAttendees) {
                       setErrors(prev => ({ ...prev, eventMaxAttendees: '' }));
                     }
-                    dispatch(updateNewEvent({
-                      ...newEvent,
-                      eventMaxAttendees: parseInt(e.target.value, 10) || 1,
-                    }));
+                    dispatch(
+                      updateNewEvent({
+                        ...newEvent,
+                        eventMaxAttendees: parseInt(e.target.value, 10) || 1,
+                      })
+                    );
                   }}
                   placeholder="50"
                   className="text-base"
@@ -1035,11 +1107,13 @@ const CreateEventForm = ({ onSuccess }) => {
         <CustomDateTimePicker
           isOpen={showStartDatePicker}
           onClose={() => dispatch(setShowStartDatePicker(false))}
-          onSelect={(dateTime) => {
-            dispatch(updateNewEvent({
-              ...newEvent,
-              eventStartDate: dateTime,
-            }));
+          onSelect={dateTime => {
+            dispatch(
+              updateNewEvent({
+                ...newEvent,
+                eventStartDate: dateTime,
+              })
+            );
             dispatch(setShowStartDatePicker(false));
           }}
           initialDateTime={newEvent.eventStartDate}
@@ -1050,11 +1124,13 @@ const CreateEventForm = ({ onSuccess }) => {
         <CustomDateTimePicker
           isOpen={showEndDatePicker}
           onClose={() => dispatch(setShowEndDatePicker(false))}
-          onSelect={(dateTime) => {
-            dispatch(updateNewEvent({
-              ...newEvent,
-              eventEndDate: dateTime,
-            }));
+          onSelect={dateTime => {
+            dispatch(
+              updateNewEvent({
+                ...newEvent,
+                eventEndDate: dateTime,
+              })
+            );
             dispatch(setShowEndDatePicker(false));
           }}
           initialDateTime={newEvent.eventEndDate}

@@ -1,4 +1,5 @@
 const User = require('../models/userModel');
+const Organization = require('../models/organizationModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
@@ -29,9 +30,21 @@ exports.getMe = catchAsync(async (req, res, next) => {
     if (!user) {
         return next(new AppError('No user found with that ID', 404));
     }
+
+    // Find user's organization (where user is creator)
+    const organization = await Organization.findOne({
+        organizationCreator: req.user.id,
+        isDeleted: false
+    })
+        .populate('organizationCreator', 'name email profilePhoto')
+        .populate('organizationMembers', 'name email profilePhoto');
+
     res.status(200).json({
         status: 'success',
-        data: { user }
+        data: {
+            user,
+            organization: organization || null
+        }
     });
 });
 

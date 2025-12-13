@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import EventHeader from '../EventHeader';
 import Sidebar from '../Sidebar';
 import EventFooter from '../EventFooter';
+import Button from '../ui/Button';
 
 function DashboardLayout() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -13,6 +14,7 @@ function DashboardLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Get current page from URL
   const getCurrentPage = () => {
@@ -26,11 +28,11 @@ function DashboardLayout() {
       const pageName = match[1];
       // Map route names to page identifiers
       const pageMap = {
-        'home': 'dashboard',
-        'events': 'events',
-        'calendar': 'calendar',
-        'analytics': 'analytics',
-        'settings': 'settings',
+        home: 'dashboard',
+        events: 'events',
+        calendar: 'calendar',
+        analytics: 'analytics',
+        settings: 'settings',
       };
       return pageMap[pageName] || 'dashboard';
     }
@@ -60,30 +62,34 @@ function DashboardLayout() {
   }
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = () => {
     logout();
     showToast('Logged out successfully', 'success');
     navigate('/login');
+    setShowLogoutConfirm(false);
   };
 
   const handleNavigation = page => {
     // Map page names to URL paths
     const pageMap = {
-      'dashboard': '/home',
-      'events': '/events',
-      'calendar': '/calendar',
-      'analytics': '/analytics',
-      'settings': '/settings',
+      dashboard: '/home',
+      events: '/events',
+      calendar: '/calendar',
+      analytics: '/analytics',
+      settings: '/settings',
     };
 
     const path = pageMap[page] || '/home';
     navigate(path);
-    
+
     // Always close sidebar on mobile after navigation
     if (isMobile) {
       setSidebarOpen(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50 flex flex-col">
@@ -116,6 +122,42 @@ function DashboardLayout() {
 
       {/* Footer Component */}
       <EventFooter />
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Logout</h2>
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to logout? This action cannot be undone.
+              </p>
+              <div className="flex space-x-3 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  rounded="lg"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="lg"
+                  onClick={handleConfirmLogout}
+                  className="text-sm bg-red-600 hover:bg-red-700"
+                >
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

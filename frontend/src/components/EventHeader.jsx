@@ -1,23 +1,15 @@
 import { Bell, User } from 'lucide-react';
 
 function EventHeader({ user, onNavigate }) {
-
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          {/* Left Side - Logo & Brand */}
+          {/* Left Side - Brand Name */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg sm:text-xl">
-                  C
-                </span>
-              </div>
               <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
-                Collaboraid
+              Unite
               </span>
-            </div>
           </div>
 
           {/* Right Side - User & Actions */}

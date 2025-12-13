@@ -26,7 +26,7 @@ function SocialLinks() {
           href={social.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="social-icon group relative p-2 hover:bg-gray-100 rounded-lg transition-colors duration-300"
+          className="social-icon group relative p-2 hover:bg-gray-100 rounded-lg transition-all duration-200 hover:scale-105"
         >
           <social.icon className="w-5 h-5 text-gray-600 hover:text-purple-600" />
           <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">

@@ -3,7 +3,7 @@
  * Handles JWT token storage in localStorage with proper error handling
  */
 
-const TOKEN_KEY = 'collaboraid_auth_token';
+const TOKEN_KEY = 'unite_auth_token';
 
 export const tokenStorage = {
   /**

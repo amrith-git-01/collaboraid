@@ -12,7 +12,7 @@ import Button from '../ui/Button';
 function Login() {
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
-  const { showToast, isAnyToastVisible } = useToast();
+  const { showToast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const { navigateIfNoToast } = useToastNavigation();
   const [showPassword, setShowPassword] = useState(false);

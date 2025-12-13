@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 function Signup() {
   const { register, isLoading } = useAuth();
-  const { showToast, isAnyToastVisible } = useToast();
+  const { showToast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const { navigateIfNoToast, canNavigate } = useToastNavigation();
   const navigate = useNavigate();

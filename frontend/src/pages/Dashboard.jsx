@@ -1,27 +1,12 @@
 import { useAuth } from '../hooks/useAuth';
-import { useState, useEffect } from 'react';
-import { useToastNavigation } from '../hooks/useToastNavigation';
 
 function Dashboard() {
-  const { user, logout, isAuthenticated } = useAuth();
-  const { navigateIfNoToast, canNavigate } = useToastNavigation();
+  const { isAuthenticated } = useAuth();
 
   // Early return if user is not authenticated - this prevents the component from rendering
   if (!isAuthenticated) {
     return null;
   }
-
-  const handleLogout = () => {
-    // Remove the popstate event listener before navigating
-    window.removeEventListener('popstate', () => {});
-
-    // Clear the navigation isolation
-    window.history.pushState(null, '', '/');
-
-    // Logout and navigate to home
-    logout();
-    navigateIfNoToast('/');
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

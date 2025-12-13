@@ -21,7 +21,6 @@ export const useToastNavigation = () => {
     }, [navigateWithToastCheck]);
 
     return {
-        navigateWithToastCheck,
         navigateIfNoToast,
         canNavigate: !isAnyToastVisible(),
     };

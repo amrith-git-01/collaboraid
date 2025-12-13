@@ -18,6 +18,7 @@ exports.searchPlaces = catchAsync(async (req, res, next) => {
     });
   }
 
+  try {
   const places = await locationService.searchPlaces(q, parseInt(limit));
 
   res.status(200).json({
@@ -27,5 +28,10 @@ exports.searchPlaces = catchAsync(async (req, res, next) => {
       places,
     },
   });
+  } catch (error) {
+    console.error('Location search error in controller:', error);
+    // Re-throw to let catchAsync handle it
+    throw error;
+  }
 });
 

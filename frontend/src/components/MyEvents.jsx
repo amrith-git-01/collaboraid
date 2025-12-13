@@ -1,5 +1,6 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -16,11 +17,12 @@ import {
   List,
   Grid3X3,
   Layers,
+  Building2,
 } from 'lucide-react';
 import EventCard from './EventCard';
+import EventSkeletonCard from './EventSkeletonCard';
 import Button from './ui/Button';
 import Input from './ui/Input';
-import UIVerseLoader from './ui/UIVerseLoader';
 import FilterDropdown from './ui/FilterDropdown';
 import {
   setMyEventsSearchQuery,
@@ -33,6 +35,8 @@ import {
 import {
   selectMyEventsFilters,
   selectFilteredMyEvents,
+  selectHasOrganization,
+  selectOrganization,
 } from '../store/selectors';
 
 const MyEvents = ({
@@ -46,8 +50,11 @@ const MyEvents = ({
   onCreateEvent,
 }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const filters = useSelector(selectMyEventsFilters);
   const filteredEvents = useSelector(selectFilteredMyEvents);
+  const hasOrganization = useSelector(selectHasOrganization);
+  const organization = useSelector(selectOrganization);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 30, scale: 0.98 },
@@ -336,8 +343,10 @@ const MyEvents = ({
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center py-6">
-          <UIVerseLoader text="Loading..." />
+        <div className="w-full space-y-3">
+          {[1, 2, 3].map(index => (
+            <EventSkeletonCard key={`skeleton-${index}`} />
+          ))}
         </div>
       ) : filteredEvents.length > 0 ? (
         <div className="w-full">
@@ -384,6 +393,35 @@ const MyEvents = ({
       ) : (
         // No events at all
         <div className="text-center py-6 px-4 mt-6">
+          {!hasOrganization ? (
+            // No organization - show create organization message
+            <>
+              <div className="text-gray-400 mb-3">
+                <Building2 className="mx-auto h-8 w-8 animate-float-up-down" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900 mb-1.5">
+                Create the organization before creating events
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
+                You need to create an organization first before you can create
+                events.
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="lg"
+                  onClick={() => navigate('/settings')}
+                  className="text-sm"
+                  icon={<Building2 className="w-3.5 h-3.5" />}
+                >
+                  Create Organization
+                </Button>
+              </div>
+            </>
+          ) : (
+            // Has organization - show create event button
+            <>
           <div className="text-gray-400 mb-3">
             <Calendar className="mx-auto h-8 w-8 animate-float-up-down" />
           </div>
@@ -404,6 +442,8 @@ const MyEvents = ({
               Create Your First Event
             </Button>
           </div>
+            </>
+          )}
         </div>
       )}
     </div>

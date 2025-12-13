@@ -3,7 +3,7 @@
  * Handles persisting user object in localStorage
  */
 
-const USER_KEY = 'collaboraid_auth_user';
+const USER_KEY = 'unite_auth_user';
 
 export const authStorage = {
   setUser(user) {

@@ -14,7 +14,7 @@ function Button({
   ...props
 }) {
   const baseClasses =
-    'font-semibold transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none flex items-center justify-center gap-2';
+    'font-semibold transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none flex items-center justify-center gap-2';
 
   const roundedClasses = {
     full: 'rounded-full',
@@ -59,7 +59,9 @@ function Button({
 
     if (icon) {
       const iconElement = (
-        <span className={iconPosition === 'left' ? 'order-first' : 'order-last'}>
+        <span
+          className={iconPosition === 'left' ? 'order-first' : 'order-last'}
+        >
           {icon}
         </span>
       );

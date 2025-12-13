@@ -3,23 +3,29 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 // API Endpoints
 export const API_ENDPOINTS = {
-    CONTACT: `${API_BASE_URL}/collaboraid/api/contact/send`,
+    CONTACT: `${API_BASE_URL}/unite/api/contact/send`,
 
-    LOGIN: `${API_BASE_URL}/collaboraid/api/users/login`,
+    LOGIN: `${API_BASE_URL}/unite/api/users/login`,
 
-    REGISTER: `${API_BASE_URL}/collaboraid/api/users/register`,
+    REGISTER: `${API_BASE_URL}/unite/api/users/register`,
 
-    LOGOUT: `${API_BASE_URL}/collaboraid/api/users/logout`,
+    LOGOUT: `${API_BASE_URL}/unite/api/users/logout`,
 
-    GET_CURRENT_USER: `${API_BASE_URL}/collaboraid/api/users/me`,
+    GET_CURRENT_USER: `${API_BASE_URL}/unite/api/users/me`,
 
-    UPDATE_ME: `${API_BASE_URL}/collaboraid/api/users/updateMe`,
+    UPDATE_ME: `${API_BASE_URL}/unite/api/users/updateMe`,
 
-    UPDATE_PASSWORD: `${API_BASE_URL}/collaboraid/api/users/updatePassword`,
+    UPDATE_PASSWORD: `${API_BASE_URL}/unite/api/users/updatePassword`,
 
-    FORGOT_PASSWORD: `${API_BASE_URL}/collaboraid/api/users/forgotPassword`,
+    FORGOT_PASSWORD: `${API_BASE_URL}/unite/api/users/forgotPassword`,
 
-    RESET_PASSWORD: `${API_BASE_URL}/collaboraid/api/users/resetPassword`,
+    RESET_PASSWORD: `${API_BASE_URL}/unite/api/users/resetPassword`,
 
-    EVENTS: `${API_BASE_URL}/collaboraid/api/events`,
+    EVENTS: `${API_BASE_URL}/unite/api/events`,
+
+    LOCATION: `${API_BASE_URL}/unite/api/location`,
+
+    ORGANIZATIONS: `${API_BASE_URL}/unite/api/organizations`,
+    CREATE_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/create`,
+    MY_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/myOrganization`,
 };

@@ -133,7 +133,7 @@ function Sidebar({
                   activeTab === 'dashboard'
                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
                 onClick={() => handleNavigation('dashboard')}
               >
                 <Home
@@ -160,7 +160,7 @@ function Sidebar({
                   activeTab === 'events'
                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
                 onClick={() => handleNavigation('events')}
               >
                 <Calendar
@@ -185,7 +185,7 @@ function Sidebar({
                   activeTab === 'calendar'
                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
                 onClick={() => handleNavigation('calendar')}
               >
                 <Clock
@@ -212,7 +212,7 @@ function Sidebar({
                   activeTab === 'analytics'
                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
                 onClick={() => handleNavigation('analytics')}
               >
                 <BarChart3
@@ -239,7 +239,7 @@ function Sidebar({
                   activeTab === 'settings'
                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
                 onClick={() => handleNavigation('settings')}
               >
                 <Settings
@@ -274,7 +274,7 @@ function Sidebar({
               onClick={handleLogout}
               className={`flex items-center w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200 relative ${
                 sidebarOpen ? 'p-3 space-x-2' : 'p-3 justify-center'
-              }`}
+              } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
             >
               <LogOut className="w-5 h-5 flex-shrink-0 text-red-600" />
               <span

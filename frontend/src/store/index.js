@@ -4,18 +4,27 @@ import storage from 'redux-persist/lib/storage';
 import authReducer from "./authSlice";
 import eventsReducer from "./eventsSlice";
 import filtersReducer from "./filtersSlice";
+import organizationReducer from "./organizationSlice";
 
-const persistConfig = {
-    key: 'root',
+const authPersistConfig = {
+    key: 'auth',
     storage,
-    whitelist: ['auth'], // Only persist auth state
+    whitelist: ['user', 'isAuthenticated', 'authChecked'],
 };
 
-const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+const organizationPersistConfig = {
+    key: 'organization',
+    storage,
+    whitelist: ['organization', 'hasOrganization'],
+};
+
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+const persistedOrganizationReducer = persistReducer(organizationPersistConfig, organizationReducer);
 
 export const store = configureStore({
     reducer: {
         auth: persistedAuthReducer,
+        organization: persistedOrganizationReducer,
         events: eventsReducer,
         filters: filtersReducer,
     },

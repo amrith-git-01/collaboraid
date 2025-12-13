@@ -1,4 +1,5 @@
 const Event = require('../models/eventModel');
+const Organization = require('../models/organizationModel');
 const { uploads, processAndUploadImage, imagePresets } = require('../utils/multerConfig');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
@@ -15,6 +16,7 @@ exports.createEvent = catchAsync(async (req, res, next) => {
             eventStartDate,
             eventEndDate,
             eventMaxAttendees,
+            eventOrganization,
             online,
             offline
         } = req.body;
@@ -23,8 +25,19 @@ exports.createEvent = catchAsync(async (req, res, next) => {
         const eventCreator = req.user.id;
 
         // 1. BASIC VALIDATION
-        if (!eventName || !eventDescription || !eventType || !eventAccessType || !eventStartDate || !eventEndDate || !eventMaxAttendees) {
+        if (!eventName || !eventDescription || !eventType || !eventAccessType || !eventStartDate || !eventEndDate || !eventMaxAttendees || !eventOrganization) {
             return next(new AppError('Please provide all required fields', 400));
+        }
+
+        // 1.5. ORGANIZATION VALIDATION
+        const organization = await Organization.findOne({
+            _id: eventOrganization,
+            organizationCreator: eventCreator,
+            isDeleted: false
+        });
+
+        if (!organization) {
+            return next(new AppError('Invalid organization. Please ensure you have created an organization before creating events.', 400));
         }
 
         // 2. EVENT TYPE VALIDATION
@@ -156,6 +169,7 @@ exports.createEvent = catchAsync(async (req, res, next) => {
             eventEndDate: endDate,
             eventImage: eventImageUrl, // Use the processed image URL
             eventCreator,
+            eventOrganization: organization._id,
             eventMaxAttendees,
             eventParticipants: [],
             eventStatus: 'upcoming'
@@ -190,9 +204,10 @@ exports.createEvent = catchAsync(async (req, res, next) => {
         // Create event with the preset image
         const newEvent = await Event.create(eventData);
 
-        // Populate the eventCreator field
+        // Populate the eventCreator and eventOrganization fields
         const populatedEvent = await Event.findById(newEvent._id)
             .populate('eventCreator', 'name email')
+            .populate('eventOrganization', 'organizationName description organizationUrl')
             .populate('eventParticipants', 'name email');
 
         res.status(201).json({
