@@ -63,7 +63,11 @@ const AuthCheck = () => {
           } else {
             // Fetch organization separately
             try {
-              await dispatch(fetchMyOrganization()).unwrap();
+              const orgResult = await dispatch(fetchMyOrganization()).unwrap();
+              // If organization is null, explicitly clear it
+              if (!orgResult?.data?.organization) {
+                dispatch(clearOrganization());
+              }
             } catch (orgError) {
               // Organization fetch failed, but don't block auth check
               console.log('Organization fetch failed:', orgError);

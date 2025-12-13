@@ -12,19 +12,12 @@ const authPersistConfig = {
     whitelist: ['user', 'isAuthenticated', 'authChecked'],
 };
 
-const organizationPersistConfig = {
-    key: 'organization',
-    storage,
-    whitelist: ['organization', 'hasOrganization'],
-};
-
 const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
-const persistedOrganizationReducer = persistReducer(organizationPersistConfig, organizationReducer);
 
 export const store = configureStore({
     reducer: {
         auth: persistedAuthReducer,
-        organization: persistedOrganizationReducer,
+        organization: organizationReducer,
         events: eventsReducer,
         filters: filtersReducer,
     },

@@ -74,6 +74,9 @@ exports.createOrganization = catchAsync(async (req, res, next) => {
         }
     }
 
+    // Generate unique invitation code
+    organizationData.invitationCode = await Organization.generateUniqueInvitationCode();
+
     const organization = await Organization.create(organizationData);
 
     // Populate creator and members

@@ -107,8 +107,11 @@ const organizationSlice = createSlice({
             })
             .addCase(fetchMyOrganization.fulfilled, (state, action) => {
                 state.loading = false;
-                state.organization = action.payload.data?.organization || null;
-                state.hasOrganization = !!action.payload.data?.organization;
+                const organization = action.payload.data?.organization || null;
+                // Always set organization and hasOrganization based on API response
+                // This ensures state is synced with database
+                state.organization = organization;
+                state.hasOrganization = !!organization;
                 state.error = null;
             })
             .addCase(fetchMyOrganization.rejected, (state, action) => {

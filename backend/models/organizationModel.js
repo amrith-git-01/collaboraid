@@ -52,6 +52,14 @@ const organizationSchema = new mongoose.Schema({
             return this.organizationCreator ? [this.organizationCreator] : [];
         },
     },
+    invitationCode: {
+        type: String,
+        required: [true, 'Invitation code is required'],
+        unique: true,
+        uppercase: true,
+        trim: true,
+        length: [10, 'Invitation code must be exactly 10 characters'],
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -87,10 +95,43 @@ organizationSchema.pre('save', function (next) {
     next();
 });
 
+// Static method to generate unique invitation code
+organizationSchema.statics.generateUniqueInvitationCode = async function () {
+    const generateCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 10; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
+
+    let code;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (!isUnique && attempts < maxAttempts) {
+        code = generateCode();
+        const existingOrganization = await this.findOne({ invitationCode: code });
+        if (!existingOrganization) {
+            isUnique = true;
+        }
+        attempts++;
+    }
+
+    if (!isUnique) {
+        throw new Error('Unable to generate unique invitation code after multiple attempts');
+    }
+
+    return code;
+};
+
 // Create indexes for better query performance
 organizationSchema.index({ organizationCreator: 1 });
 organizationSchema.index({ organizationMembers: 1 });
 organizationSchema.index({ isDeleted: 1 });
+organizationSchema.index({ invitationCode: 1 }); // Index for invitation code lookups
 
 const Organization = mongoose.model('Organization', organizationSchema);
 
