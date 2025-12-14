@@ -91,7 +91,12 @@ organizationSchema.statics.generateUniqueInvitationCode = async function () {
 
     while (!isUnique && attempts < maxAttempts) {
         code = generateCode();
-        const existingOrganization = await this.findOne({ invitationCode: code });
+        // Check if code is already used by a non-deleted organization
+        // This ensures the code is unique among active organizations
+        const existingOrganization = await this.findOne({ 
+            invitationCode: code,
+            isDeleted: false 
+        });
         if (!existingOrganization) {
             isUnique = true;
         }
