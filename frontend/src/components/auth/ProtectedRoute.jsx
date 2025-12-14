@@ -12,6 +12,7 @@ const ProtectedRoute = ({ children }) => {
     '/calendar',
     '/analytics',
     '/settings',
+    '/notifications',
   ];
 
   // If we're not on a protected route, don't render this component

@@ -30,4 +30,9 @@ export const API_ENDPOINTS = {
     MY_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/myOrganization`,
     INVITE_USER: `${API_BASE_URL}/unite/api/organizations/invite`,
     JOIN_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/join`,
+
+    NOTIFICATIONS: `${API_BASE_URL}/unite/api/notifications`,
+    MY_NOTIFICATIONS: `${API_BASE_URL}/unite/api/notifications/myNotifications`,
+    MARK_NOTIFICATION_READ: `${API_BASE_URL}/unite/api/notifications`,
+    MARK_ALL_READ: `${API_BASE_URL}/unite/api/notifications/markAllRead`,
 };

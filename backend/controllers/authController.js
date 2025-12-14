@@ -1,4 +1,5 @@
 const User = require('../models/userModel');
+const Notification = require('../models/notificationModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const { promisify } = require('util');
@@ -26,6 +27,19 @@ exports.register = catchAsync(async (req, res, next) => {
         // Log email error but don't fail registration
         console.error('Failed to send welcome email:', emailError.message);
     }
+
+    // Create welcome notification (non-blocking - don't fail registration if notification fails)
+    try {
+        await Notification.create({
+            userId: newUser._id,
+            title: 'Welcome to Unite!',
+            message: `Welcome ${newUser.name}! We're excited to have you on board. Start by creating an organization or joining one.`,
+        });
+    } catch (notificationError) {
+        // Log notification error but don't fail registration
+        console.error('Failed to create welcome notification:', notificationError.message);
+    }
+
     createSendToken(newUser, 201, res);
 });
 

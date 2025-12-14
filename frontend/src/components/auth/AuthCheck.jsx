@@ -9,6 +9,7 @@ import {
   clearOrganization,
 } from '../../store/organizationSlice';
 import { fetchAllEvents, fetchUserEvents } from '../../store/eventsSlice';
+import { fetchNotifications } from '../../store/notificationsSlice';
 import { tokenStorage } from '../../utils/tokenStorage';
 import { authStorage } from '../../utils/authStorage';
 
@@ -35,6 +36,7 @@ const AuthCheck = () => {
             await Promise.all([
               dispatch(fetchAllEvents()).unwrap(),
               dispatch(fetchUserEvents()).unwrap(),
+              dispatch(fetchNotifications()).unwrap(),
             ]);
           } catch (error) {
             console.log('Data fetch on refresh failed:', error);
@@ -106,6 +108,7 @@ const AuthCheck = () => {
             await Promise.all([
               dispatch(fetchAllEvents()).unwrap(),
               dispatch(fetchUserEvents()).unwrap(),
+              dispatch(fetchNotifications()).unwrap(),
             ]);
           } catch (eventError) {
             // Events fetch failed, but don't block auth check

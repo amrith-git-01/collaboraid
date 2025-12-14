@@ -33,6 +33,7 @@ function DashboardLayout() {
         calendar: 'calendar',
         analytics: 'analytics',
         settings: 'settings',
+        notifications: 'notifications',
       };
       return pageMap[pageName] || 'dashboard';
     }
@@ -86,6 +87,7 @@ function DashboardLayout() {
       calendar: '/calendar',
       analytics: '/analytics',
       settings: '/settings',
+      notifications: '/notifications',
     };
 
     const path = pageMap[page] || '/home';

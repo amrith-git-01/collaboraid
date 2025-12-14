@@ -1,23 +1,31 @@
 import { Bell, User } from 'lucide-react';
+import { useNotifications } from '../hooks/useNotifications';
 
 function EventHeader({ user, onNavigate }) {
+  const { unreadCount } = useNotifications();
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Left Side - Brand Name */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-              <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
+            <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
               Unite
-              </span>
+            </span>
           </div>
 
           {/* Right Side - User & Actions */}
           <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Notifications */}
-            <button className="p-1.5 sm:p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 hover:scale-105 relative">
+            <button
+              onClick={() => onNavigate && onNavigate('notifications')}
+              className="p-1.5 sm:p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 hover:scale-105 relative"
+            >
               <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
             </button>
 
             {/* User Menu */}

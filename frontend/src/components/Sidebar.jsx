@@ -8,7 +8,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Bell,
 } from 'lucide-react';
+import { useNotifications } from '../hooks/useNotifications';
 
 function Sidebar({
   sidebarOpen,
@@ -18,6 +20,7 @@ function Sidebar({
   activeTab,
   isMobile = false,
 }) {
+  const { unreadCount } = useNotifications();
   // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = event => {
@@ -230,6 +233,38 @@ function Sidebar({
                   }`}
                 >
                   Analytics
+                </span>
+              </div>
+              <div
+                className={`rounded-lg transition-colors duration-200 flex items-center cursor-pointer relative ${
+                  sidebarOpen ? 'p-3 space-x-3' : 'p-3 justify-center'
+                } ${
+                  activeTab === 'notifications'
+                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    : 'text-gray-600 hover:bg-gray-50'
+                } ${!sidebarOpen ? 'hover:scale-105 transition-all duration-200' : ''}`}
+                onClick={() => handleNavigation('notifications')}
+              >
+                <div className="relative flex-shrink-0">
+                  <Bell
+                    className={`w-5 h-5 flex-shrink-0 ${
+                      activeTab === 'notifications'
+                        ? 'text-purple-700'
+                        : 'text-gray-600'
+                    }`}
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full animate-pulse transform translate-x-1/2 -translate-y-1/2"></span>
+                  )}
+                </div>
+                <span
+                  className={`transition-all duration-200 ease-out ${
+                    sidebarOpen
+                      ? 'opacity-100 ml-0'
+                      : 'opacity-0 absolute left-0 w-0 overflow-hidden'
+                  }`}
+                >
+                  Notifications
                 </span>
               </div>
               <div

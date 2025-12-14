@@ -6,6 +6,7 @@ import Events from './pages/Events';
 import Calendar from './pages/Calendar';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import PublicRoute from './components/auth/PublicRoute';
 import RootRedirect from './components/auth/RootRedirect';
@@ -87,6 +88,16 @@ function App() {
               }
             >
               <Route index element={<Settings />} />
+            </Route>
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Notifications />} />
             </Route>
 
             {/* Catch all - redirect to root */}

@@ -5,6 +5,8 @@ import authReducer from "./authSlice";
 import eventsReducer from "./eventsSlice";
 import filtersReducer from "./filtersSlice";
 import organizationReducer from "./organizationSlice";
+import notificationsReducer from "./notificationsSlice";
+import { notificationsMiddleware } from "./notificationsMiddleware";
 
 const authPersistConfig = {
     key: 'auth',
@@ -20,13 +22,14 @@ export const store = configureStore({
         organization: organizationReducer,
         events: eventsReducer,
         filters: filtersReducer,
+        notifications: notificationsReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: {
                 ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
             },
-        }),
+        }).concat(notificationsMiddleware),
 });
 
 export const persistor = persistStore(store);

@@ -1,5 +1,6 @@
 const Organization = require('../models/organizationModel');
 const User = require('../models/userModel');
+const Notification = require('../models/notificationModel');
 const Email = require('../utils/email');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
@@ -424,6 +425,30 @@ exports.inviteUser = catchAsync(async (req, res, next) => {
                 invitorEmail: invitor.email,
                 organizationName: organization.organizationName
             });
+
+            // Create notification for invitor (non-blocking)
+            try {
+                await Notification.create({
+                    userId: userId,
+                    title: 'Invitation Sent',
+                    message: `You have invited ${emailData.email} to join "${organization.organizationName}".`,
+                });
+            } catch (notificationError) {
+                console.error(`Failed to create invitation notification for invitor:`, notificationError.message);
+            }
+
+            // Create notification for invited user if they exist (non-blocking)
+            if (invitedUser) {
+                try {
+                    await Notification.create({
+                        userId: invitedUser._id,
+                        title: 'Organization Invitation',
+                        message: `${invitor.name} (${invitor.email}) has invited you to join "${organization.organizationName}". Use the invitation code: ${organization.invitationCode}`,
+                    });
+                } catch (notificationError) {
+                    console.error(`Failed to create invitation notification for invited user:`, notificationError.message);
+                }
+            }
 
             results.successful.push(email);
         } catch (error) {

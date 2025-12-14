@@ -12,6 +12,7 @@ const profilePhotoRouter = require('./routes/profilePhotoRoutes');
 const eventRouter = require('./routes/eventRoutes');
 const locationRouter = require('./routes/locationRoutes');
 const organizationRouter = require('./routes/organizationRoutes');
+const notificationRouter = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/unite/api/profile-photo', profilePhotoRouter);
 app.use('/unite/api/events', eventRouter);
 app.use('/unite/api/location', locationRouter);
 app.use('/unite/api/organizations', organizationRouter);
+app.use('/unite/api/notifications', notificationRouter);
 
 
 app.use((req, res, next) => {
