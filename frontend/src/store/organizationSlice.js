@@ -74,6 +74,24 @@ export const deleteOrganization = createAsyncThunk(
     }
 );
 
+export const joinOrganization = createAsyncThunk(
+    'organization/joinOrganization',
+    async (invitationCode, { rejectWithValue }) => {
+        try {
+            const data = await organizationService.joinOrganization(invitationCode);
+            return data;
+        } catch (error) {
+            if (error.response?.data?.message) {
+                return rejectWithValue(error.response.data.message);
+            } else if (error.message) {
+                return rejectWithValue(error.message);
+            } else {
+                return rejectWithValue('Failed to join organization. Please try again.');
+            }
+        }
+    }
+);
+
 const initialState = {
     organization: null,
     loading: false,
@@ -162,6 +180,21 @@ const organizationSlice = createSlice({
                 state.error = null;
             })
             .addCase(deleteOrganization.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Join Organization
+            .addCase(joinOrganization.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(joinOrganization.fulfilled, (state, action) => {
+                state.loading = false;
+                state.organization = action.payload.data?.organization || null;
+                state.hasOrganization = !!action.payload.data?.organization;
+                state.error = null;
+            })
+            .addCase(joinOrganization.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

@@ -33,7 +33,11 @@ export const createEvent = createAsyncThunk(
             const data = await eventService.createEvent(eventData);
             return data;
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create event');
+            // Ensure we always return a string, not an Error object
+            const errorMessage = error.response?.data?.message
+                || error.message
+                || 'Failed to create event';
+            return rejectWithValue(errorMessage);
         }
     }
 );
@@ -45,7 +49,11 @@ export const updateEvent = createAsyncThunk(
             const data = await eventService.updateEvent(eventId, eventData);
             return data;
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update event');
+            // Ensure we always return a string, not an Error object
+            const errorMessage = error.response?.data?.message
+                || error.message
+                || 'Failed to update event';
+            return rejectWithValue(errorMessage);
         }
     }
 );

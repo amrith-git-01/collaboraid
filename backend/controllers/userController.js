@@ -26,24 +26,36 @@ exports.getUser = catchAsync(async (req, res, next) => {
 // Get current user info
 exports.getMe = catchAsync(async (req, res, next) => {
     // req.user is set by authController.protect middleware
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).populate('organizationId');
     if (!user) {
         return next(new AppError('No user found with that ID', 404));
     }
 
-    // Find user's organization (where user is creator)
-    const organization = await Organization.findOne({
-        organizationCreator: req.user.id,
-        isDeleted: false
-    })
-        .populate('organizationCreator', 'name email profilePhoto')
-        .populate('organizationMembers', 'name email profilePhoto');
+    // Get user's organization using organizationId
+    let organization = null;
+    if (user.organizationId) {
+        organization = await Organization.findById(user.organizationId)
+            .populate('organizationCreator', 'name email profilePhoto');
+
+        if (organization && !organization.isDeleted) {
+            // Get all members (users with this organizationId)
+            const members = await User.find({ organizationId: organization._id })
+                .select('name email profilePhoto');
+
+            // Add members array to organization object for response
+            const organizationResponse = organization.toObject();
+            organizationResponse.organizationMembers = members;
+            organization = organizationResponse;
+        } else {
+            organization = null;
+        }
+    }
 
     res.status(200).json({
         status: 'success',
         data: {
             user,
-            organization: organization || null
+            organization: organization
         }
     });
 });

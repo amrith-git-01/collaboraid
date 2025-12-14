@@ -1,5 +1,6 @@
 const Event = require('../models/eventModel');
 const Organization = require('../models/organizationModel');
+const User = require('../models/userModel');
 const { uploads, processAndUploadImage, imagePresets } = require('../utils/multerConfig');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
@@ -30,14 +31,26 @@ exports.createEvent = catchAsync(async (req, res, next) => {
         }
 
         // 1.5. ORGANIZATION VALIDATION
+        // Get user's organizationId
+        const user = await User.findById(eventCreator).select('organizationId');
+
+        if (!user || !user.organizationId) {
+            return next(new AppError('You must be a member of an organization to create events.', 403));
+        }
+
+        // Validate that the provided organization matches user's organization
+        if (eventOrganization.toString() !== user.organizationId.toString()) {
+            return next(new AppError('You can only create events for your organization.', 403));
+        }
+
+        // Verify organization exists and is not deleted
         const organization = await Organization.findOne({
             _id: eventOrganization,
-            organizationCreator: eventCreator,
             isDeleted: false
         });
 
         if (!organization) {
-            return next(new AppError('Invalid organization. Please ensure you have created an organization before creating events.', 400));
+            return next(new AppError('Invalid organization or organization not found.', 400));
         }
 
         // 2. EVENT TYPE VALIDATION
@@ -244,7 +257,32 @@ exports.getAllEvents = catchAsync(async (req, res, next) => {
         sortOrder = 'desc'
     } = req.query;
 
-    const filter = { isDeleted: false };
+    const userId = req.user.id;
+
+    // Get user's organizationId
+    const user = await User.findById(userId).select('organizationId');
+
+    if (!user || !user.organizationId) {
+        return res.status(200).json({
+            status: 'success',
+            results: 0,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: 0,
+                totalEvents: 0,
+                hasNextPage: false,
+                hasPrevPage: false
+            },
+            data: {
+                events: []
+            }
+        });
+    }
+
+    const filter = {
+        isDeleted: false,
+        eventOrganization: user.organizationId
+    };
 
     if (eventType && ['online', 'offline'].includes(eventType)) {
         filter.eventType = eventType;
@@ -269,6 +307,7 @@ exports.getAllEvents = catchAsync(async (req, res, next) => {
         .skip(skip)
         .limit(limitNum)
         .populate('eventCreator', 'name email')
+        .populate('eventOrganization', 'organizationName')
         .populate('eventParticipants', 'name email');
 
     const totalEvents = await Event.countDocuments(filter);
@@ -290,8 +329,10 @@ exports.getAllEvents = catchAsync(async (req, res, next) => {
 });
 
 exports.getEvent = catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
     const event = await Event.findById(req.params.id)
         .populate('eventCreator', 'name email')
+        .populate('eventOrganization', 'organizationName')
         .populate('eventParticipants', 'name email');
 
     if (!event) {
@@ -300,6 +341,20 @@ exports.getEvent = catchAsync(async (req, res, next) => {
 
     if (event.isDeleted) {
         return next(new AppError('Event is no longer available', 404));
+    }
+
+    // Check if user has access to this event (must be in the same organization)
+    if (event.eventOrganization) {
+        const user = await User.findById(userId).select('organizationId');
+
+        if (!user || !user.organizationId) {
+            return next(new AppError('You do not have access to this event', 403));
+        }
+
+        const organizationId = event.eventOrganization._id || event.eventOrganization;
+        if (organizationId.toString() !== user.organizationId.toString()) {
+            return next(new AppError('You do not have access to this event', 403));
+        }
     }
 
     res.status(200).json({
@@ -437,15 +492,35 @@ exports.deleteEvent = catchAsync(async (req, res, next) => {
 
 // Get events created by or joined by the current user
 exports.getMyEvents = catchAsync(async (req, res, next) => {
-    const events = await Event.find({
+    const userId = req.user.id;
+
+    // Get user's organizationId
+    const user = await User.findById(userId).select('organizationId');
+
+    if (!user || !user.organizationId) {
+        return res.status(200).json({
+            status: 'success',
+            results: 0,
+            data: {
+                events: []
+            }
+        });
+    }
+
+    // Build query: events created by user, joined by user, or from user's organization
+    const query = {
+        isDeleted: false,
         $or: [
-            { eventCreator: req.user.id }, // Events created by the user
-            { eventParticipants: req.user.id } // Events joined by the user
-        ],
-        isDeleted: false
-    })
+            { eventCreator: userId }, // Events created by the user
+            { eventParticipants: userId }, // Events joined by the user
+            { eventOrganization: user.organizationId } // Events from user's organization
+        ]
+    };
+
+    const events = await Event.find(query)
         .sort({ eventCreatedAt: -1 })
         .populate('eventCreator', 'name email')
+        .populate('eventOrganization', 'organizationName')
         .populate('eventParticipants', 'name email');
 
     res.status(200).json({
@@ -459,12 +534,34 @@ exports.getMyEvents = catchAsync(async (req, res, next) => {
 
 // Get events the user has joined
 exports.getJoinedEvents = catchAsync(async (req, res, next) => {
-    const events = await Event.find({
-        eventParticipants: req.user.id,
-        isDeleted: false
-    })
+    const userId = req.user.id;
+
+    // Get user's organizationId
+    const user = await User.findById(userId).select('organizationId');
+
+    if (!user || !user.organizationId) {
+        return res.status(200).json({
+            status: 'success',
+            results: 0,
+            data: {
+                events: []
+            }
+        });
+    }
+
+    // Build query: events joined by user or from user's organization
+    const query = {
+        isDeleted: false,
+        $or: [
+            { eventParticipants: userId }, // Events joined by the user
+            { eventOrganization: user.organizationId } // Events from user's organization
+        ]
+    };
+
+    const events = await Event.find(query)
         .sort({ eventCreatedAt: -1 })
         .populate('eventCreator', 'name email')
+        .populate('eventOrganization', 'organizationName')
         .populate('eventParticipants', 'name email');
 
     res.status(200).json({
@@ -498,6 +595,7 @@ exports.getDeletedEvents = catchAsync(async (req, res, next) => {
 // Join an event
 exports.joinEvent = catchAsync(async (req, res, next) => {
     const eventId = req.params.id;
+    const userId = req.user.id;
     let joinCode = null;
     if (req.body) {
         joinCode = req.body.joinCode;
@@ -507,7 +605,7 @@ exports.joinEvent = catchAsync(async (req, res, next) => {
         return next(new AppError('Event ID is required', 400));
     }
 
-    const event = await Event.findById(eventId);
+    const event = await Event.findById(eventId).populate('eventOrganization');
 
     if (!event) {
         return next(new AppError('Event not found', 404));
@@ -517,12 +615,26 @@ exports.joinEvent = catchAsync(async (req, res, next) => {
         return next(new AppError('Event is no longer available', 400));
     }
 
-    if (event.eventCreator.toString() === req.user.id) {
+    // Check if user has access to this event (must be in the same organization)
+    if (event.eventOrganization) {
+        const user = await User.findById(userId).select('organizationId');
+
+        if (!user || !user.organizationId) {
+            return next(new AppError('You must be a member of the organization to join this event', 403));
+        }
+
+        const organizationId = event.eventOrganization._id || event.eventOrganization;
+        if (organizationId.toString() !== user.organizationId.toString()) {
+            return next(new AppError('You must be a member of the organization to join this event', 403));
+        }
+    }
+
+    if (event.eventCreator.toString() === userId) {
         return next(new AppError('You cannot join your own event', 400));
     }
 
     // Check if user is already a participant
-    if (event.eventParticipants.includes(req.user.id)) {
+    if (event.eventParticipants.includes(userId)) {
         return next(new AppError('You are already registered for this event', 400));
     }
 
@@ -601,4 +713,3 @@ exports.leaveEvent = catchAsync(async (req, res, next) => {
         }
     });
 });
-

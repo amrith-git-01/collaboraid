@@ -39,6 +39,7 @@ import {
   selectEventToEdit,
   selectShowStartDatePicker,
   selectShowEndDatePicker,
+  selectOrganization,
 } from '../store/selectors';
 
 const CreateEventForm = ({ onSuccess }) => {
@@ -51,6 +52,7 @@ const CreateEventForm = ({ onSuccess }) => {
   const eventToEdit = useSelector(selectEventToEdit);
   const showStartDatePicker = useSelector(selectShowStartDatePicker);
   const showEndDatePicker = useSelector(selectShowEndDatePicker);
+  const organization = useSelector(selectOrganization);
 
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedLocationData, setSelectedLocationData] = useState(null);
@@ -252,11 +254,14 @@ const CreateEventForm = ({ onSuccess }) => {
         onSuccess();
       }
     } catch (error) {
-      showToast(
-        error ||
-          (isEditMode ? 'Failed to update event' : 'Failed to create event'),
-        'error'
-      );
+      // Ensure error is always a string
+      const errorMessage =
+        typeof error === 'string'
+          ? error
+          : error?.message ||
+            error?.response?.data?.message ||
+            (isEditMode ? 'Failed to update event' : 'Failed to create event');
+      showToast(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }

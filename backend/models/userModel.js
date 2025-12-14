@@ -51,6 +51,11 @@ const userSchema = new mongoose.Schema({
     profilePhoto: {
         type: String,
     },
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null,
+    },
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
@@ -98,5 +103,8 @@ userSchema.methods.createPasswordResetToken = function () {
     this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
     return resetToken;
 }
+
+// Create index for organizationId for better query performance
+userSchema.index({ organizationId: 1 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -37,6 +37,7 @@ import {
   selectFilteredMyEvents,
   selectHasOrganization,
   selectOrganization,
+  selectOrganizationLoading,
 } from '../store/selectors';
 
 const MyEvents = ({
@@ -55,6 +56,7 @@ const MyEvents = ({
   const filteredEvents = useSelector(selectFilteredMyEvents);
   const hasOrganization = useSelector(selectHasOrganization);
   const organization = useSelector(selectOrganization);
+  const organizationLoading = useSelector(selectOrganizationLoading);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 30, scale: 0.98 },
@@ -262,10 +264,10 @@ const MyEvents = ({
         {/* Search Bar */}
         <div className="mb-3">
           <Input
-              type="text"
-              value={filters.searchQuery}
-              onChange={e => dispatch(setMyEventsSearchQuery(e.target.value))}
-              placeholder="Search your events by name..."
+            type="text"
+            value={filters.searchQuery}
+            onChange={e => dispatch(setMyEventsSearchQuery(e.target.value))}
+            placeholder="Search your events by name..."
             icon={Search}
             rightIcon={filters.searchQuery ? X : null}
             onRightIconClick={clearSearch}
@@ -393,7 +395,17 @@ const MyEvents = ({
       ) : (
         // No events at all
         <div className="text-center py-6 px-4 mt-6">
-          {!hasOrganization ? (
+          {organizationLoading ? (
+            // Loading organization - show loading state
+            <>
+              <div className="text-gray-400 mb-3">
+                <Building2 className="mx-auto h-8 w-8 animate-pulse" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900 mb-1.5">
+                Loading...
+              </h3>
+            </>
+          ) : !hasOrganization ? (
             // No organization - show create organization message
             <>
               <div className="text-gray-400 mb-3">
@@ -422,26 +434,26 @@ const MyEvents = ({
           ) : (
             // Has organization - show create event button
             <>
-          <div className="text-gray-400 mb-3">
-            <Calendar className="mx-auto h-8 w-8 animate-float-up-down" />
-          </div>
-          <h3 className="text-base font-medium text-gray-900 mb-1.5">
-            No events created yet
-          </h3>
-          <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
-            Start by creating your first event to get started.
-          </p>
-          <div className="flex justify-center">
-            <Button
-              variant="primary"
-              size="sm"
-              rounded="lg"
-              onClick={onCreateEvent}
-              className="text-sm"
-            >
-              Create Your First Event
-            </Button>
-          </div>
+              <div className="text-gray-400 mb-3">
+                <Calendar className="mx-auto h-8 w-8 animate-float-up-down" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900 mb-1.5">
+                No events created yet
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
+                Start by creating your first event to get started.
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="lg"
+                  onClick={onCreateEvent}
+                  className="text-sm"
+                >
+                  Create Your First Event
+                </Button>
+              </div>
             </>
           )}
         </div>

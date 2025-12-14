@@ -286,4 +286,107 @@ module.exports = class Email {
     const subject = `Contact Message from ${contactData.name}`;
     await this.send(mailTemplate, subject);
   }
+
+  async sendInvitation(invitationData) {
+    const { invitationCode, invitorEmail, organizationName } = invitationData;
+
+    const mailTemplate = `<div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fafaf9; border-radius: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); box-sizing: border-box;">
+
+    <!-- Brand Name -->
+    <div style="text-align: center; padding: 20px 0;">
+      <h1 style="font-size: 28px; font-weight: bold; color: #9333ea; margin: 0;">Unite</h1>
+    </div>
+
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #9333ea, #7c3aed); color: #ffffff; padding: 30px; border-radius: 8px; text-align: center;">
+      <h1 style="font-size: 24px; margin-bottom: 15px;">You're Invited!</h1>
+      <p style="font-size: 16px; line-height: 1.5;">
+        Hi there,<br>
+        You've been invited to join <strong>${organizationName}</strong> on Unite!
+      </p>
+    </div>
+
+    <!-- Invitation Details -->
+    <div style="background-color: #ffffff; padding: 25px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
+      <h2 style="font-size: 20px; color: #111827; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">Invitation Details</h2>
+      
+      <div style="margin-bottom: 15px;">
+        <strong style="color: #9333ea; font-size: 14px;">Organization:</strong>
+        <p style="margin: 5px 0 0 0; color: #374151; font-size: 16px; font-weight: 600;">${organizationName}</p>
+      </div>
+      
+      <div style="margin-bottom: 15px;">
+        <strong style="color: #9333ea; font-size: 14px;">Invited by:</strong>
+        <p style="margin: 5px 0 0 0; color: #374151; font-size: 16px;">
+          <a href="mailto:${invitorEmail}" style="color: #9333ea; text-decoration: none;">${invitorEmail}</a>
+        </p>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #f3e8ff, #e9d5ff); padding: 20px; border-radius: 8px; border: 2px solid #9333ea; margin-top: 20px; text-align: center;">
+        <p style="margin: 0 0 10px 0; color: #6b21a8; font-size: 14px; font-weight: 600;">Your Invitation Code:</p>
+        <div style="background-color: #ffffff; padding: 15px; border-radius: 6px; display: inline-block; border: 2px dashed #9333ea;">
+          <p style="margin: 0; color: #111827; font-size: 24px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace;">${invitationCode}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div style="background-color: #ffffff; padding: 25px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
+      <h2 style="font-size: 18px; color: #111827; margin-bottom: 15px;">How to Join:</h2>
+      <ol style="margin: 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.7;">
+        <li style="margin-bottom: 10px;">Log in to your Unite account (or create one if you don't have an account)</li>
+        <li style="margin-bottom: 10px;">Go to Settings → Organization</li>
+        <li style="margin-bottom: 10px;">Click on "Join Organization"</li>
+        <li style="margin-bottom: 0;">Enter the invitation code shown above</li>
+      </ol>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 20px 0; font-size: 13px; color: #9ca3af; margin-top: 25px;">
+      <p style="margin-bottom: 10px;">Questions? Contact the organization creator or visit our support page.</p>
+      <p style="margin: 0;">
+        <a href="https://linkedin.com/in/amrith-bharath-v-s-278542258/" style="color: #9333ea; text-decoration: none; margin: 0 6px;">LinkedIn</a> |
+        <a href="https://github.com/amrith-git-01" style="color: #9333ea; text-decoration: none; margin: 0 6px;">GitHub</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Responsive -->
+  <style>
+    @media screen and (max-width: 600px) {
+      div[style *= "max-width: 600px"] {
+        padding: 10px !important;
+      }
+      h1 {
+        font-size: 20px !important;
+      }
+      h2 {
+        font-size: 18px !important;
+      }
+      p {
+        font-size: 14px !important;
+      }
+      a {
+        font-size: 14px !important;
+      }
+      div[style *= "padding: 20px"] {
+        padding: 15px !important;
+      }
+      div[style *= "padding: 25px"] {
+        padding: 20px !important;
+      }
+      div[style *= "padding: 30px"] {
+        padding: 20px !important;
+      }
+      div[style *= "font-size: 24px"] {
+        font-size: 20px !important;
+        letter-spacing: 2px !important;
+      }
+    }
+  </style>
+    `;
+
+    const subject = `Invitation to join ${organizationName} on Unite`;
+    await this.send(mailTemplate, subject);
+  }
 }

@@ -69,6 +69,9 @@ function Events() {
   // 2. When refresh button is pressed (handleRefresh)
   // 3. When a new event is created (onSuccess callback in CreateEventForm)
 
+  // Organization is fetched during auth check (in AuthCheck.jsx) to ensure it's available before navigation
+  // No need to fetch here - AuthCheck handles it during app initialization
+
   // Handle errors
   useEffect(() => {
     if (error) {

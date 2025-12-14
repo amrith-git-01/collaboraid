@@ -1,4 +1,6 @@
 const Organization = require('../models/organizationModel');
+const User = require('../models/userModel');
+const Email = require('../utils/email');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
@@ -15,13 +17,12 @@ exports.createOrganization = catchAsync(async (req, res, next) => {
     const organizationCreator = req.user.id;
 
     // Check if user already has an organization
-    const existingOrganization = await Organization.findOne({
-        organizationCreator: organizationCreator,
-        isDeleted: false
-    });
-
-    if (existingOrganization) {
-        return next(new AppError('You already have an organization. You can only create one organization.', 400));
+    const user = await User.findById(organizationCreator).select('organizationId');
+    if (user && user.organizationId) {
+        const existingOrganization = await Organization.findById(user.organizationId);
+        if (existingOrganization && !existingOrganization.isDeleted) {
+            return next(new AppError('You already have an organization. You can only create one organization.', 400));
+        }
     }
 
     // Validate required fields
@@ -51,7 +52,6 @@ exports.createOrganization = catchAsync(async (req, res, next) => {
     const organizationData = {
         organizationName: organizationName.trim(),
         organizationCreator: organizationCreator,
-        organizationMembers: [organizationCreator], // Creator is automatically added
     };
 
     if (description) {
@@ -79,31 +79,39 @@ exports.createOrganization = catchAsync(async (req, res, next) => {
 
     const organization = await Organization.create(organizationData);
 
-    // Populate creator and members
-    await organization.populate('organizationCreator', 'name email');
-    await organization.populate('organizationMembers', 'name email profilePhoto');
+    // Set creator's organizationId
+    await User.findByIdAndUpdate(organizationCreator, {
+        organizationId: organization._id
+    });
+
+    // Get organization with populated creator
+    await organization.populate('organizationCreator', 'name email profilePhoto');
+
+    // Get all members (users with this organizationId)
+    const members = await User.find({ organizationId: organization._id })
+        .select('name email profilePhoto');
+
+    // Add members array to organization object for response
+    const organizationResponse = organization.toObject();
+    organizationResponse.organizationMembers = members;
 
     res.status(201).json({
         status: 'success',
         message: 'Organization created successfully',
         data: {
-            organization
+            organization: organizationResponse
         }
     });
 });
 
-// Get user's organization (where user is creator)
+// Get user's organization (where user is creator or member)
 exports.getMyOrganization = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
 
-    const organization = await Organization.findOne({
-        organizationCreator: userId,
-        isDeleted: false
-    })
-        .populate('organizationCreator', 'name email profilePhoto')
-        .populate('organizationMembers', 'name email profilePhoto');
+    // Get user's organizationId
+    const user = await User.findById(userId).select('organizationId').populate('organizationId');
 
-    if (!organization) {
+    if (!user || !user.organizationId) {
         return res.status(200).json({
             status: 'success',
             data: {
@@ -112,10 +120,33 @@ exports.getMyOrganization = catchAsync(async (req, res, next) => {
         });
     }
 
+    // Get organization
+    const organization = await Organization.findById(user.organizationId)
+        .populate('organizationCreator', 'name email profilePhoto');
+
+    if (!organization || organization.isDeleted) {
+        // Clear organizationId if organization is deleted
+        await User.findByIdAndUpdate(userId, { organizationId: null });
+        return res.status(200).json({
+            status: 'success',
+            data: {
+                organization: null
+            }
+        });
+    }
+
+    // Get all members (users with this organizationId)
+    const members = await User.find({ organizationId: organization._id })
+        .select('name email profilePhoto');
+
+    // Add members array to organization object for response
+    const organizationResponse = organization.toObject();
+    organizationResponse.organizationMembers = members;
+
     res.status(200).json({
         status: 'success',
         data: {
-            organization
+            organization: organizationResponse
         }
     });
 });
@@ -128,28 +159,33 @@ exports.getOrganizationById = catchAsync(async (req, res, next) => {
     const organization = await Organization.findOne({
         _id: id,
         isDeleted: false
-    })
-        .populate('organizationCreator', 'name email profilePhoto')
-        .populate('organizationMembers', 'name email profilePhoto');
+    }).populate('organizationCreator', 'name email profilePhoto');
 
     if (!organization) {
         return next(new AppError('Organization not found', 404));
     }
 
-    // Check if user is a member or creator
-    const isMember = organization.organizationMembers.some(
-        member => member._id.toString() === userId
-    );
+    // Check if user is a member or creator using organizationId
+    const user = await User.findById(userId).select('organizationId');
     const isCreator = organization.organizationCreator._id.toString() === userId;
+    const isMember = user && user.organizationId && user.organizationId.toString() === id;
 
     if (!isMember && !isCreator) {
         return next(new AppError('You do not have access to this organization', 403));
     }
 
+    // Get all members (users with this organizationId)
+    const members = await User.find({ organizationId: organization._id })
+        .select('name email profilePhoto');
+
+    // Add members array to organization object for response
+    const organizationResponse = organization.toObject();
+    organizationResponse.organizationMembers = members;
+
     res.status(200).json({
         status: 'success',
         data: {
-            organization
+            organization: organizationResponse
         }
     });
 });
@@ -232,15 +268,22 @@ exports.updateOrganization = catchAsync(async (req, res, next) => {
     organization.updatedAt = Date.now();
     await organization.save();
 
-    // Populate creator and members
+    // Populate creator
     await organization.populate('organizationCreator', 'name email profilePhoto');
-    await organization.populate('organizationMembers', 'name email profilePhoto');
+
+    // Get all members (users with this organizationId)
+    const members = await User.find({ organizationId: organization._id })
+        .select('name email profilePhoto');
+
+    // Add members array to organization object for response
+    const organizationResponse = organization.toObject();
+    organizationResponse.organizationMembers = members;
 
     res.status(200).json({
         status: 'success',
         message: 'Organization updated successfully',
         data: {
-            organization
+            organization: organizationResponse
         }
     });
 });
@@ -270,9 +313,208 @@ exports.deleteOrganization = catchAsync(async (req, res, next) => {
     organization.deletedAt = Date.now();
     await organization.save();
 
+    // Clear organizationId for all members
+    await User.updateMany(
+        { organizationId: organization._id },
+        { organizationId: null }
+    );
+
     res.status(200).json({
         status: 'success',
         message: 'Organization deleted successfully',
         data: null
+    });
+});
+
+// Invite user to organization
+exports.inviteUser = catchAsync(async (req, res, next) => {
+    const { email, emails } = req.body;
+    const userId = req.user.id;
+
+    // Support both single email and array of emails (for backward compatibility)
+    let emailList = [];
+    if (emails && Array.isArray(emails)) {
+        emailList = emails;
+    } else if (email) {
+        emailList = [email];
+    } else {
+        return next(new AppError('Email or emails array is required', 400));
+    }
+
+    // Validate emails array
+    if (emailList.length === 0) {
+        return next(new AppError('At least one email is required', 400));
+    }
+
+    // Validate email format for all emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = emailList.filter(e => !emailRegex.test(e));
+    if (invalidEmails.length > 0) {
+        return next(new AppError(`Invalid email format: ${invalidEmails.join(', ')}`, 400));
+    }
+
+    // Get user's organization
+    const user = await User.findById(userId).select('organizationId');
+    if (!user || !user.organizationId) {
+        return next(new AppError('You must be the creator of an organization to invite users', 403));
+    }
+
+    const organization = await Organization.findOne({
+        _id: user.organizationId,
+        organizationCreator: userId,
+        isDeleted: false
+    });
+
+    if (!organization) {
+        return next(new AppError('You must be the creator of an organization to invite users', 403));
+    }
+
+    // Get invitor details
+    const invitor = await User.findById(userId);
+    if (!invitor) {
+        return next(new AppError('Invitor not found', 404));
+    }
+
+    // Get existing members by organizationId
+    const existingMembers = await User.find({ organizationId: organization._id })
+        .select('email');
+    const existingMemberEmails = existingMembers.map(member => (member.email || '').toLowerCase());
+
+    // Normalize and check emails
+    const normalizedEmails = emailList.map(e => e.toLowerCase().trim());
+    const uniqueEmails = [...new Set(normalizedEmails)];
+
+    if (uniqueEmails.length !== normalizedEmails.length) {
+        return next(new AppError('Duplicate emails found in the request', 400));
+    }
+
+    const alreadyMemberEmails = [];
+    for (const email of normalizedEmails) {
+        if (existingMemberEmails.includes(email)) {
+            alreadyMemberEmails.push(email);
+        }
+    }
+
+    if (alreadyMemberEmails.length > 0) {
+        return next(new AppError(
+            `The following users are already members: ${alreadyMemberEmails.join(', ')}`,
+            400
+        ));
+    }
+
+    // Send invitation emails
+    const results = {
+        successful: [],
+        failed: []
+    };
+
+    for (const email of normalizedEmails) {
+        try {
+            // Check if user exists
+            const invitedUser = await User.findOne({ email: email.toLowerCase() });
+
+            const emailData = {
+                email: email.toLowerCase(),
+                name: invitedUser ? invitedUser.name : email.split('@')[0]
+            };
+
+            const emailService = new Email(emailData);
+            await emailService.sendInvitation({
+                invitationCode: organization.invitationCode,
+                invitorEmail: invitor.email,
+                organizationName: organization.organizationName
+            });
+
+            results.successful.push(email);
+        } catch (error) {
+            console.error(`Error sending invitation email to ${email}:`, error);
+            results.failed.push({ email, error: error.message });
+        }
+    }
+
+    if (results.failed.length > 0 && results.successful.length === 0) {
+        return next(new AppError(
+            `Failed to send all invitation emails: ${results.failed.map(f => f.email).join(', ')}`,
+            500
+        ));
+    }
+
+    const message = results.failed.length > 0
+        ? `Invitations sent to ${results.successful.length} email(s). Failed to send to: ${results.failed.map(f => f.email).join(', ')}`
+        : `Invitation${results.successful.length > 1 ? 's' : ''} sent successfully to ${results.successful.length} ${results.successful.length > 1 ? 'users' : 'user'}`;
+
+    res.status(200).json({
+        status: 'success',
+        message,
+        data: {
+            emails: results.successful,
+            failed: results.failed
+        }
+    });
+});
+
+// Join organization by invitation code
+exports.joinOrganization = catchAsync(async (req, res, next) => {
+    const { invitationCode } = req.body;
+    const userId = req.user.id;
+
+    // Validate invitation code
+    if (!invitationCode) {
+        return next(new AppError('Invitation code is required', 400));
+    }
+
+    // Normalize invitation code (uppercase, trim)
+    const normalizedCode = invitationCode.trim().toUpperCase();
+
+    if (normalizedCode.length !== 10) {
+        return next(new AppError('Invitation code must be exactly 10 characters', 400));
+    }
+
+    // Find organization by invitation code
+    const organization = await Organization.findOne({
+        invitationCode: normalizedCode,
+        isDeleted: false
+    });
+
+    if (!organization) {
+        return next(new AppError('Invalid invitation code or organization not found', 404));
+    }
+
+    // Check if user already has an organization
+    const user = await User.findById(userId).select('organizationId');
+    if (user && user.organizationId) {
+        if (user.organizationId.toString() === organization._id.toString()) {
+            return next(new AppError('You are already a member of this organization', 400));
+        }
+        return next(new AppError('You already have an organization. You can only be a member of one organization at a time.', 400));
+    }
+
+    // Check if user is the creator (shouldn't happen, but just in case)
+    if (organization.organizationCreator.toString() === userId) {
+        return next(new AppError('You are the creator of this organization', 400));
+    }
+
+    // Set user's organizationId
+    await User.findByIdAndUpdate(userId, {
+        organizationId: organization._id
+    });
+
+    // Populate creator for response
+    await organization.populate('organizationCreator', 'name email profilePhoto');
+
+    // Get all members (users with this organizationId)
+    const members = await User.find({ organizationId: organization._id })
+        .select('name email profilePhoto');
+
+    // Add members array to organization object for response
+    const organizationResponse = organization.toObject();
+    organizationResponse.organizationMembers = members;
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Successfully joined the organization',
+        data: {
+            organization: organizationResponse
+        }
     });
 });

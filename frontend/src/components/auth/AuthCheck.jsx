@@ -16,10 +16,32 @@ const AuthCheck = () => {
   const { setUser, isAuthenticated, authChecked } = useAuth();
   const dispatch = useDispatch();
   const hasCheckedRef = useRef(false);
+  const hasFetchedOnRefreshRef = useRef(false);
 
   useEffect(() => {
-    // Only run once and skip if already checked
+    // Only run auth validation once and skip if already checked
     if (hasCheckedRef.current || authChecked) {
+      // Even if auth is already checked, we still need to fetch data on refresh
+      // This ensures organization, events, and members are always up-to-date
+      const token = tokenStorage.getToken();
+      if (token && isAuthenticated && !hasFetchedOnRefreshRef.current) {
+        // Fetch data on refresh even if auth was already checked (only once per mount)
+        hasFetchedOnRefreshRef.current = true;
+        const fetchDataOnRefresh = async () => {
+          try {
+            // Fetch organization with members
+            await dispatch(fetchMyOrganization()).unwrap();
+            // Fetch events
+            await Promise.all([
+              dispatch(fetchAllEvents()).unwrap(),
+              dispatch(fetchUserEvents()).unwrap(),
+            ]);
+          } catch (error) {
+            console.log('Data fetch on refresh failed:', error);
+          }
+        };
+        fetchDataOnRefresh();
+      }
       return;
     }
 
@@ -27,7 +49,7 @@ const AuthCheck = () => {
       // Check if token exists in localStorage
       const token = tokenStorage.getToken();
       const storedUser = authStorage.getUser();
-      
+
       if (!token) {
         // No token, mark as checked and return
         dispatch(markAuthChecked());
@@ -57,29 +79,33 @@ const AuthCheck = () => {
           dispatch(setUser(response.user));
           authStorage.setUser(response.user);
 
-          // Fetch organization if available in response, otherwise fetch separately
+          // Always fetch organization during auth check to ensure it's available before navigation
+          // This improves UX by having organization data ready when user navigates to Events page
+          // If organization is in response, set it immediately, but still fetch to ensure latest data
           if (response.organization) {
+            // Set organization from response immediately for quick UI update
             dispatch(setOrganization(response.organization));
-          } else {
-            // Fetch organization separately
-            try {
-              const orgResult = await dispatch(fetchMyOrganization()).unwrap();
-              // If organization is null, explicitly clear it
-              if (!orgResult?.data?.organization) {
-                dispatch(clearOrganization());
-              }
-            } catch (orgError) {
-              // Organization fetch failed, but don't block auth check
-              console.log('Organization fetch failed:', orgError);
+          }
+
+          // Always fetch organization to ensure we have the latest data
+          // This runs even if organization was in response to get latest members, etc.
+          try {
+            const orgResult = await dispatch(fetchMyOrganization()).unwrap();
+            // If organization is null, explicitly clear it
+            if (!orgResult?.data?.organization) {
               dispatch(clearOrganization());
             }
+          } catch (orgError) {
+            // Organization fetch failed, but don't block auth check
+            console.log('Organization fetch failed:', orgError);
+            dispatch(clearOrganization());
           }
 
           // Fetch events when user logs in
           try {
             await Promise.all([
-              dispatch(fetchAllEvents()),
-              dispatch(fetchUserEvents()),
+              dispatch(fetchAllEvents()).unwrap(),
+              dispatch(fetchUserEvents()).unwrap(),
             ]);
           } catch (eventError) {
             // Events fetch failed, but don't block auth check
@@ -113,7 +139,7 @@ const AuthCheck = () => {
 
     // Run auth check immediately
     checkAuth();
-  }, [dispatch, authChecked, setUser]);
+  }, [dispatch, authChecked, setUser, isAuthenticated]);
 
   // Listen for logout events from API interceptor
   useEffect(() => {

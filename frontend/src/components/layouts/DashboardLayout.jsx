@@ -65,11 +65,17 @@ function DashboardLayout() {
     setShowLogoutConfirm(true);
   };
 
-  const handleConfirmLogout = () => {
-    logout();
-    showToast('Logged out successfully', 'success');
-    navigate('/login');
-    setShowLogoutConfirm(false);
+  const handleConfirmLogout = async () => {
+    try {
+      await logout();
+      showToast('Logged out successfully', 'success');
+      navigate('/login');
+      setShowLogoutConfirm(false);
+    } catch (error) {
+      // Even if logout fails, navigate to login
+      navigate('/login');
+      setShowLogoutConfirm(false);
+    }
   };
 
   const handleNavigation = page => {

@@ -44,14 +44,6 @@ const organizationSchema = new mongoose.Schema({
         ref: 'User',
         required: [true, 'Organization must have a creator'],
     },
-    organizationMembers: {
-        type: [mongoose.Schema.Types.ObjectId],
-        ref: 'User',
-        default: function () {
-            // Default to include creator in members
-            return this.organizationCreator ? [this.organizationCreator] : [];
-        },
-    },
     invitationCode: {
         type: String,
         required: [true, 'Invitation code is required'],
@@ -79,20 +71,6 @@ const organizationSchema = new mongoose.Schema({
 }, {
     timestamps: true,
     versionKey: false,
-});
-
-// Pre-save hook: Ensure creator is in members array
-organizationSchema.pre('save', function (next) {
-    if (this.isNew && this.organizationCreator) {
-        // If this is a new organization and creator exists
-        if (!this.organizationMembers || this.organizationMembers.length === 0) {
-            this.organizationMembers = [this.organizationCreator];
-        } else if (!this.organizationMembers.includes(this.organizationCreator)) {
-            // Add creator to members if not already present
-            this.organizationMembers.unshift(this.organizationCreator);
-        }
-    }
-    next();
 });
 
 // Static method to generate unique invitation code
@@ -129,9 +107,8 @@ organizationSchema.statics.generateUniqueInvitationCode = async function () {
 
 // Create indexes for better query performance
 organizationSchema.index({ organizationCreator: 1 });
-organizationSchema.index({ organizationMembers: 1 });
 organizationSchema.index({ isDeleted: 1 });
-organizationSchema.index({ invitationCode: 1 }); // Index for invitation code lookups
+// Note: invitationCode already has an index from unique: true
 
 const Organization = mongoose.model('Organization', organizationSchema);
 

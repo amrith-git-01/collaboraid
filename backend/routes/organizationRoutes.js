@@ -9,6 +9,8 @@ router.use(authController.protect);
 
 router.post('/create', organizationController.createOrganization);
 router.get('/myOrganization', organizationController.getMyOrganization);
+router.post('/invite', organizationController.inviteUser);
+router.post('/join', organizationController.joinOrganization);
 router.get('/:id', organizationController.getOrganizationById);
 router.patch('/:id', organizationController.updateOrganization);
 router.delete('/:id', organizationController.deleteOrganization);

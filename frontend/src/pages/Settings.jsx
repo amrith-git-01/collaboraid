@@ -7,12 +7,14 @@ import {
   fetchMyOrganization,
   deleteOrganization,
   clearOrganization,
+  joinOrganization,
 } from '../store/organizationSlice';
 import UploadModal from '../components/UploadModal';
 import RemovePhotoModal from '../components/RemovePhotoModal';
 import OrganizationForm from '../components/OrganizationForm';
 import { profilePhotoService } from '../services/profilePhotoService';
 import { userService } from '../services/userService';
+import { organizationService } from '../services/organizationService';
 import Input from '../components/ui/Input';
 import Textarea from '../components/ui/Textarea';
 import Button from '../components/ui/Button';
@@ -51,16 +53,11 @@ function Settings() {
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [isEditingOrganization, setIsEditingOrganization] = useState(false);
   const [joinCode, setJoinCode] = useState('');
+  const [joinCodeError, setJoinCodeError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Organization is already fetched on login via AuthCheck component
-  // Since organization is no longer persisted, fetch on mount to get latest data
-  useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchMyOrganization());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]); // Fetch when authenticated
+  // Organization is already fetched on login and refresh via AuthCheck component
+  // No need to fetch on mount - AuthCheck handles it
 
   // View state: 'list' or 'detail'
   const [currentView, setCurrentView] = useState('list');
@@ -93,6 +90,12 @@ function Settings() {
 
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Invite user state
+  const [inviteEmails, setInviteEmails] = useState([
+    { id: 1, value: '', error: '' },
+  ]);
+  const [isInviting, setIsInviting] = useState(false);
 
   // Early return if user is not authenticated
   if (!isAuthenticated) {
@@ -643,17 +646,52 @@ function Settings() {
                 <form
                   onSubmit={async e => {
                     e.preventDefault();
-                    if (!joinCode.trim()) {
-                      showToast('Please enter a join code', 'error');
+
+                    // Clear previous errors
+                    setJoinCodeError('');
+
+                    // Validate invitation code
+                    const trimmedCode = joinCode.trim();
+                    if (!trimmedCode) {
+                      setJoinCodeError('Invitation code is required');
                       return;
                     }
-                    // TODO: Implement join organization API call
-                    showToast(
-                      'Organization join feature will be implemented soon',
-                      'info'
-                    );
-                    setShowJoinForm(false);
-                    setJoinCode('');
+
+                    // Validate code format (10 characters, alphanumeric)
+                    const codeRegex = /^[A-Z0-9]{10}$/;
+                    if (!codeRegex.test(trimmedCode.toUpperCase())) {
+                      setJoinCodeError(
+                        'Invitation code must be exactly 10 alphanumeric characters'
+                      );
+                      return;
+                    }
+
+                    setIsLoading(true);
+                    try {
+                      // Join organization - this will store the organization in Redux
+                      await dispatch(
+                        joinOrganization(trimmedCode.toUpperCase())
+                      ).unwrap();
+
+                      // Refresh organization data to ensure we have the latest
+                      await dispatch(fetchMyOrganization()).unwrap();
+
+                      showToast(
+                        'Successfully joined the organization!',
+                        'success'
+                      );
+                      setShowJoinForm(false);
+                      setJoinCode('');
+                      setJoinCodeError('');
+                    } catch (error) {
+                      const errorMessage =
+                        error ||
+                        'Failed to join organization. Please try again.';
+                      setJoinCodeError(errorMessage);
+                      showToast(errorMessage, 'error');
+                    } finally {
+                      setIsLoading(false);
+                    }
                   }}
                   className="space-y-4"
                 >
@@ -664,14 +702,36 @@ function Settings() {
                     <Input
                       type="text"
                       value={joinCode}
-                      onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                      onChange={e => {
+                        const value = e.target.value.toUpperCase();
+                        setJoinCode(value);
+                        // Clear error on change
+                        if (joinCodeError) {
+                          setJoinCodeError('');
+                        }
+                      }}
+                      onBlur={() => {
+                        // Validate on blur
+                        const trimmedCode = joinCode.trim();
+                        if (trimmedCode) {
+                          const codeRegex = /^[A-Z0-9]{10}$/;
+                          if (!codeRegex.test(trimmedCode)) {
+                            setJoinCodeError(
+                              'Invitation code must be exactly 10 alphanumeric characters'
+                            );
+                          }
+                        }
+                      }}
                       placeholder="Enter organization invitation code"
-                      required
                       className="text-sm"
+                      disabled={isLoading}
+                      error={!!joinCodeError}
+                      errorMessage={joinCodeError}
+                      errorColor="orange"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Enter the invitation code provided by the organization
-                      owner
+                      Enter the 10-character invitation code provided by the
+                      organization owner
                     </p>
                   </div>
                   <div className="flex space-x-3 pt-2 justify-end">
@@ -684,7 +744,7 @@ function Settings() {
                       isLoading={isLoading}
                       className="text-sm"
                     >
-                      Join Organization
+                      {isLoading ? 'Joining...' : 'Join Organization'}
                     </Button>
                   </div>
                 </form>
@@ -832,8 +892,244 @@ function Settings() {
       user?.id === organization.organizationCreator ||
       user?._id === organization.organizationCreator;
 
+    // Get existing member emails for validation
+    const existingMemberEmails = members
+      .map(member => (member.email || '').toLowerCase())
+      .filter(email => email);
+
+    // Validate single email field
+    const validateEmailField = (emailValue, allEmails) => {
+      const trimmedValue = emailValue.trim();
+
+      if (!trimmedValue) {
+        return 'Email is required';
+      }
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedValue)) {
+        return 'Please enter a valid email address';
+      }
+
+      // Check if email is already a member
+      if (existingMemberEmails.includes(trimmedValue.toLowerCase())) {
+        return 'This user is already a member of the organization';
+      }
+
+      // Check for duplicates within the form
+      const duplicateCount = allEmails.filter(
+        e =>
+          e.value.trim().toLowerCase() === trimmedValue.toLowerCase() &&
+          e.value.trim()
+      ).length;
+      if (duplicateCount > 1) {
+        return 'This email is already entered in another field';
+      }
+
+      return '';
+    };
+
+    // Handle email input change
+    const handleEmailChange = (id, value) => {
+      setInviteEmails(prev => {
+        const updated = prev.map(email =>
+          email.id === id
+            ? {
+                ...email,
+                value,
+                error: '', // Clear error on change
+              }
+            : email
+        );
+        return updated;
+      });
+    };
+
+    // Handle email blur - validate on blur
+    const handleEmailBlur = id => {
+      setInviteEmails(prev => {
+        const emailToValidate = prev.find(e => e.id === id);
+        if (!emailToValidate || !emailToValidate.value.trim()) {
+          return prev; // Don't validate empty fields on blur
+        }
+
+        const error = validateEmailField(emailToValidate.value, prev);
+        return prev.map(email =>
+          email.id === id ? { ...email, error } : email
+        );
+      });
+    };
+
+    // Add new email field
+    const handleAddEmail = () => {
+      const newId = Math.max(...inviteEmails.map(e => e.id), 0) + 1;
+      setInviteEmails(prev => [...prev, { id: newId, value: '', error: '' }]);
+    };
+
+    // Remove email field
+    const handleRemoveEmail = id => {
+      if (inviteEmails.length > 1) {
+        setInviteEmails(prev => prev.filter(email => email.id !== id));
+      }
+    };
+
+    // Validate all emails before submission
+    const validateAllEmails = () => {
+      let hasErrors = false;
+
+      const validatedEmails = inviteEmails.map(email => {
+        const error = validateEmailField(email.value, inviteEmails);
+        if (error) {
+          hasErrors = true;
+        }
+        return { ...email, error };
+      });
+
+      setInviteEmails(validatedEmails);
+      return !hasErrors;
+    };
+
+    const handleInviteUser = async e => {
+      e.preventDefault();
+
+      // Validate all emails
+      if (!validateAllEmails()) {
+        showToast('Please fix the email errors before submitting', 'error');
+        return;
+      }
+
+      // Get all valid emails
+      const validEmails = inviteEmails
+        .map(email => email.value.trim())
+        .filter(email => email && !email.error);
+
+      if (validEmails.length === 0) {
+        showToast('Please enter at least one email address', 'error');
+        return;
+      }
+
+      setIsInviting(true);
+      try {
+        await organizationService.inviteUser(validEmails);
+        const emailCount = validEmails.length;
+        showToast(
+          `Invitation${emailCount > 1 ? 's' : ''} sent successfully to ${emailCount} ${emailCount > 1 ? 'users' : 'user'}!`,
+          'success'
+        );
+        // Reset to single empty email field
+        setInviteEmails([{ id: 1, value: '', error: '' }]);
+        // Refresh organization data to get updated members list
+        dispatch(fetchMyOrganization());
+      } catch (error) {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to send invitation. Please try again.';
+        showToast(errorMessage, 'error');
+      } finally {
+        setIsInviting(false);
+      }
+    };
+
     return (
       <div className="space-y-4">
+        {/* Invite User Section - Only show for creator */}
+        {isCreator && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                  <UserPlus className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Invite Members
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Send an invitation to join your organization
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              <form onSubmit={handleInviteUser} className="space-y-4">
+                <div className="space-y-3">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Email Addresses <span className="text-red-500">*</span>
+                  </label>
+                  {inviteEmails.map((email, index) => (
+                    <div key={email.id} className="space-y-1.5">
+                      <div className="flex items-stretch space-x-2">
+                        <div className="flex-1">
+                          <Input
+                            type="text"
+                            value={email.value}
+                            onChange={e =>
+                              handleEmailChange(email.id, e.target.value)
+                            }
+                            onBlur={() => handleEmailBlur(email.id)}
+                            placeholder="Enter email address"
+                            className="text-sm"
+                            disabled={isInviting}
+                            error={!!email.error}
+                            errorMessage={email.error}
+                            errorColor="orange"
+                          />
+                        </div>
+                        {inviteEmails.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEmail(email.id)}
+                            disabled={isInviting}
+                            className="flex-shrink-0 self-stretch flex items-center justify-center rounded-lg border-2 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed px-3 min-w-[36px]"
+                            title="Remove email"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      rounded="lg"
+                      onClick={handleAddEmail}
+                      disabled={isInviting}
+                      className="text-sm"
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                    >
+                      Add Email
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      rounded="lg"
+                      disabled={
+                        inviteEmails.every(e => !e.value.trim()) || isInviting
+                      }
+                      isLoading={isInviting}
+                      icon={<UserPlus className="w-3.5 h-3.5" />}
+                      className="text-sm"
+                    >
+                      {isInviting
+                        ? 'Sending...'
+                        : `Send Invite${inviteEmails.filter(e => e.value.trim()).length > 1 ? 's' : ''}`}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Invitation emails with the organization code will be sent to
+                    these addresses
+                  </p>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Members Section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">

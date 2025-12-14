@@ -72,4 +72,48 @@ export const organizationService = {
             throw error;
         }
     },
+
+    // Invite user(s) to organization
+    // Accepts either a single email string or an array of emails
+    inviteUser: async (emails) => {
+        try {
+            // Support both single email and array
+            const emailData = Array.isArray(emails)
+                ? { emails }
+                : { email: emails };
+
+            const response = await api.post(
+                API_ENDPOINTS.INVITE_USER,
+                emailData,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Error inviting user(s):', error);
+            throw error;
+        }
+    },
+
+    // Join organization by invitation code
+    joinOrganization: async (invitationCode) => {
+        try {
+            const response = await api.post(
+                API_ENDPOINTS.JOIN_ORGANIZATION,
+                { invitationCode },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Error joining organization:', error);
+            throw error;
+        }
+    },
 };

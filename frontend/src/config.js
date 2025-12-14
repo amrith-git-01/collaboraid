@@ -28,4 +28,6 @@ export const API_ENDPOINTS = {
     ORGANIZATIONS: `${API_BASE_URL}/unite/api/organizations`,
     CREATE_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/create`,
     MY_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/myOrganization`,
+    INVITE_USER: `${API_BASE_URL}/unite/api/organizations/invite`,
+    JOIN_ORGANIZATION: `${API_BASE_URL}/unite/api/organizations/join`,
 };
