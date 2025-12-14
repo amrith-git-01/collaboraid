@@ -9,6 +9,7 @@ import {
   clearOrganization,
   joinOrganization,
 } from '../store/organizationSlice';
+import { fetchAllEvents, fetchUserEvents } from '../store/eventsSlice';
 import UploadModal from '../components/UploadModal';
 import RemovePhotoModal from '../components/RemovePhotoModal';
 import OrganizationForm from '../components/OrganizationForm';
@@ -673,8 +674,14 @@ function Settings() {
                         joinOrganization(trimmedCode.toUpperCase())
                       ).unwrap();
 
-                      // Refresh organization data to ensure we have the latest
+                      // Refresh organization data to ensure we have the latest with members
                       await dispatch(fetchMyOrganization()).unwrap();
+
+                      // Fetch events now that user has joined an organization
+                      await Promise.all([
+                        dispatch(fetchAllEvents()).unwrap(),
+                        dispatch(fetchUserEvents()).unwrap(),
+                      ]);
 
                       showToast(
                         'Successfully joined the organization!',
